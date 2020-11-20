@@ -1,4 +1,5 @@
 #ifndef __SPEEDWIREDISCOVERY_HPP__
+#define __SPEEDWIREDISCOVERY_HPP__
 
 class SpeedwireDiscovery {
 

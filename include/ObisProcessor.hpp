@@ -1,6 +1,7 @@
 #ifndef __OBISPROCESSOR_HPP__
 #define __OBISPROCESSOR_HPP__
 
+#include <cstdint>
 #include <stdio.h>
 #include <ObisElement.hpp>
 #include <MeasurementElement.hpp>
@@ -13,7 +14,7 @@ class ObisProcessor : public ObisConsumer {
 protected:
     unsigned long averagingTime;
     unsigned long remainder;
-    __uint32_t    currentTimestamp;
+    uint32_t      currentTimestamp;
     bool          currentTimestampIsValid;
     bool          firstInBlock;
     bool          averagingTimeReached;

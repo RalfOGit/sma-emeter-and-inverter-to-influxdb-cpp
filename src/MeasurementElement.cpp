@@ -30,15 +30,15 @@ MeasurementValue::MeasurementValue(void) {
     initial = true;
 }
 
-void MeasurementValue::setValue(__uint32_t raw_value, unsigned long divisor) {
+void MeasurementValue::setValue(uint32_t raw_value, unsigned long divisor) {
     value = (double)raw_value / (double)divisor;
 }
 
-void MeasurementValue::setValue(__uint64_t raw_value, unsigned long divisor) {
+void MeasurementValue::setValue(uint64_t raw_value, unsigned long divisor) {
     value = (double)raw_value / (double)divisor;
 }
 
-void MeasurementValue::setTimer(__uint32_t time) {
+void MeasurementValue::setTimer(uint32_t time) {
     if (initial) {
         initial = false;
         timer = time;

@@ -8,14 +8,12 @@
             "name": "g++ - Build and debug active file",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/main",
+            "program": "${workspaceFolder}/emeter-grabber-debug",
             "additionalSOLibSearchPath": "/home/admin/Desktop/influxdb-cxx/build/lib/",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [
-                //{"LD_LIBRARY_PATH":"/home/admin/Desktop/influxdb-cxx/build/lib/"}
-            ],
+            "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [

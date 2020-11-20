@@ -47,9 +47,9 @@ int main(int argc, char **argv) {
         int offset     = protocol.getPayloadOffset();
 
         SpeedwireEmeter emeter(multicast_packet + offset, nbytes - offset);
-        __uint16_t susyid = emeter.getSusyID();
-        __uint32_t serial = emeter.getSerialNumber();
-        __uint32_t timer  = emeter.getTime();
+        uint16_t susyid = emeter.getSusyID();
+        uint32_t serial = emeter.getSerialNumber();
+        uint32_t timer  = emeter.getTime();
 
         void *obis = emeter.getFirstObisElement();
         while (obis != NULL) {

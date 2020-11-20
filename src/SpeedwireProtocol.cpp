@@ -10,15 +10,15 @@
 #include <SpeedwireProtocol.hpp>
 
 
-const __uint8_t  SpeedwireProtocol::sma_signature[] = {
+const uint8_t  SpeedwireProtocol::sma_signature[] = {
     0x53, 0x4d, 0x41, 0x00      // "SMA\0"
 };
 
-const __uint8_t SpeedwireProtocol::sma_tag0[] = {
+const uint8_t SpeedwireProtocol::sma_tag0[] = {
     0x00, 0x04, 0x02, 0xa0      // length: 0x0004  tag: 0x02a0
 };
 
-const __uint8_t SpeedwireProtocol::sma_net_v2[] = {
+const uint8_t SpeedwireProtocol::sma_net_v2[] = {
     0x00, 0x10
 };
 
@@ -37,7 +37,7 @@ const unsigned long SpeedwireProtocol::sma_protocol_size = 2;
 
 
 SpeedwireProtocol::SpeedwireProtocol(const void *const udp_packet, const unsigned long udp_packet_len) {
-    udp = (__uint8_t *)udp_packet;
+    udp = (uint8_t *)udp_packet;
     size = udp_packet_len;
 }
 
@@ -79,27 +79,27 @@ bool SpeedwireProtocol::checkHeader(void) {
 }
 
 // get SMA signature
-__uint32_t SpeedwireProtocol::getSignature(void) {
+uint32_t SpeedwireProtocol::getSignature(void) {
     return getUint32(udp + sma_signature_offset);
 }
 
 // get group
-__uint32_t SpeedwireProtocol::getGroup(void) {
+uint32_t SpeedwireProtocol::getGroup(void) {
     return getUint32(udp + sma_group_offset);
 }
 
 // get packet length
-__uint16_t SpeedwireProtocol::getLength(void) {
+uint16_t SpeedwireProtocol::getLength(void) {
     return getUint16(udp + sma_length_offset);
 }
 
 // get packet length
-__uint16_t SpeedwireProtocol::getNetworkVersion(void) {
+uint16_t SpeedwireProtocol::getNetworkVersion(void) {
     return getUint16(udp + sma_netversion_offset);
 }
 
 // get protocol ID
-__uint16_t SpeedwireProtocol::getProtocolID(void) {
+uint16_t SpeedwireProtocol::getProtocolID(void) {
     return getUint16(udp + sma_protocol_offset);
 }
 
@@ -110,40 +110,40 @@ unsigned long SpeedwireProtocol::getPayloadOffset(void) {
 
 
 // methods to get and set field value from and to network byte order
-__uint16_t SpeedwireProtocol::getUint16(const void *const udp_ptr) {
-    __uint16_t value_in_nbo;
+uint16_t SpeedwireProtocol::getUint16(const void *const udp_ptr) {
+    uint16_t value_in_nbo;
     memcpy(&value_in_nbo, udp_ptr, sizeof(value_in_nbo));
-    __uint16_t value = ntohs(value_in_nbo);
+    uint16_t value = ntohs(value_in_nbo);
     return value;
 }
 
-__uint32_t SpeedwireProtocol::getUint32(const void *const udp_ptr) {
-    __uint32_t value_in_nbo;
+uint32_t SpeedwireProtocol::getUint32(const void *const udp_ptr) {
+    uint32_t value_in_nbo;
     memcpy(&value_in_nbo, udp_ptr, sizeof(value_in_nbo));
-    __uint32_t value = ntohl(value_in_nbo);
+    uint32_t value = ntohl(value_in_nbo);
     return value;
 }
 
-__uint64_t SpeedwireProtocol::getUint64(const void *const udp_ptr) {
-    __uint64_t hi_value = getUint32(udp_ptr);
-    __uint64_t lo_value = getUint32(((__uint8_t*)udp_ptr) + sizeof(__uint32_t));
-    __uint64_t value = (hi_value << (sizeof(__uint32_t)*8)) | lo_value; 
+uint64_t SpeedwireProtocol::getUint64(const void *const udp_ptr) {
+    uint64_t hi_value = getUint32(udp_ptr);
+    uint64_t lo_value = getUint32(((uint8_t*)udp_ptr) + sizeof(uint32_t));
+    uint64_t value = (hi_value << (sizeof(uint32_t)*8)) | lo_value; 
    return value;
 }
 
-void SpeedwireProtocol::setUint16(void *udp_ptr, const __uint16_t value) {
-    __uint16_t value_in_nbo = htons(value);
+void SpeedwireProtocol::setUint16(void *udp_ptr, const uint16_t value) {
+    uint16_t value_in_nbo = htons(value);
     memcpy(udp_ptr, &value_in_nbo, sizeof(value_in_nbo));
 }
 
-void SpeedwireProtocol::setUint32(void *udp_ptr, const __uint32_t value) {
-    __uint32_t value_in_nbo = htonl(value);
+void SpeedwireProtocol::setUint32(void *udp_ptr, const uint32_t value) {
+    uint32_t value_in_nbo = htonl(value);
     memcpy(udp_ptr, &value_in_nbo, sizeof(value_in_nbo));
 }
 
-void SpeedwireProtocol::setUint64(void *udp_ptr, const __uint64_t value) {
-    __uint64_t hi_value = (value >> (sizeof(__uint32_t)*8));
-    __uint64_t lo_value = (value &  (((__uint64_t)1 << (sizeof(__uint32_t)*8)) - 1));
+void SpeedwireProtocol::setUint64(void *udp_ptr, const uint64_t value) {
+    uint64_t hi_value = (value >> (sizeof(uint32_t)*8));
+    uint64_t lo_value = (value &  (((uint64_t)1 << (sizeof(uint32_t)*8)) - 1));
     setUint32(udp_ptr, hi_value);
-    setUint32(((__uint8_t*)udp_ptr) + sizeof(__uint32_t), lo_value);
+    setUint32(((uint8_t*)udp_ptr) + sizeof(uint32_t), lo_value);
 }

@@ -1,7 +1,7 @@
 #include <ObisElement.hpp>
 
 
-ObisElement::ObisElement(__uint8_t channel, __uint8_t index, __uint8_t type, __uint8_t tariff) {
+ObisElement::ObisElement(uint8_t channel, uint8_t index, uint8_t type, uint8_t tariff) {
     this->channel = channel;
     this->index = index;
     this->type = type;
@@ -18,17 +18,17 @@ std::string ObisElement::toString(void) const {
     return std::string(str);
 }
 
-void ObisElement::print(__uint32_t value, FILE *file) const {
+void ObisElement::print(uint32_t value, FILE *file) const {
     fprintf(file, "%s 0x%08lx %lu\n", toString().c_str(), value, value);
 }
 
-void ObisElement::print(__uint64_t value, FILE *file) const {
+void ObisElement::print(uint64_t value, FILE *file) const {
     fprintf(file, "%s 0x%016llx %llu\n", toString().c_str(), value, value);
 }
 
 /*******************************/
 
-ObisFilterElement::ObisFilterElement(__uint8_t channel, __uint8_t index, __uint8_t type, __uint8_t tariff, 
+ObisFilterElement::ObisFilterElement(uint8_t channel, uint8_t index, uint8_t type, uint8_t tariff, 
                                      const MeasurementType &mType, const Line lin) : 
     ObisElement(channel, index, type, tariff),
     measurementType(mType),

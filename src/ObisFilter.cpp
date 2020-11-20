@@ -39,7 +39,7 @@ void ObisFilter::removeConsumer(ObisConsumer *obisConsumer) {
     }
 }
 
-bool ObisFilter::consume(const void *const obis, const __uint32_t timer) const {
+bool ObisFilter::consume(const void *const obis, const uint32_t timer) const {
     ObisElement element(SpeedwireEmeter::getObisChannel(obis),
                         SpeedwireEmeter::getObisIndex(obis),
                         SpeedwireEmeter::getObisType(obis),

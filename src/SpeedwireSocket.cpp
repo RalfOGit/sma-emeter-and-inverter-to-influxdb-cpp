@@ -15,6 +15,7 @@
     #include <unistd.h> // for sleep()
 #endif
 
+#include <cstdint>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,15 +76,15 @@ int SpeedwireSocket::open(void) {
     }
 
     // allow multiple sockets to use the same PORT number
-    u_int yes = 1;
-    if ( setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0 ){
+    uint32_t yes = 1;
+    if ( setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&yes, sizeof(yes)) < 0 ) { // (char *) cast for WIN32 compatibility
         perror("Reusing ADDR failed");
         return -1;
     }
 
     // allow packet info to be returned by recvmsg()
-    u_int info = 1;
-    if ( setsockopt(fd, SOL_SOCKET, IP_PKTINFO, &info, sizeof(info)) < 0 ){
+    uint32_t info = 1;
+    if ( setsockopt(fd, SOL_SOCKET, IP_PKTINFO, (char*)&info, sizeof(info)) < 0 ) { // (char *) cast for WIN32 compatibility
         perror("Reusing ADDR failed");
         return -1;
     }
@@ -119,7 +120,7 @@ int SpeedwireSocket::open(void) {
 }
 
 // send udp packet to the speedwire multicast address
-int SpeedwireSocket::send(const void *const buff, const size_t size) {
+int SpeedwireSocket::send(const void *const buff, const unsigned long size) {
 
     // set up multicast destination address
     struct sockaddr_in dest_addr;
@@ -149,7 +150,7 @@ int SpeedwireSocket::sendto(const void *const buff, const unsigned long size, co
 #endif
 
     // now just sendto() our destination
-    int nbytes = ::sendto(fd, buff, size, 0, (struct sockaddr*) &dest, sizeof(dest));
+    int nbytes = ::sendto(fd, (char*)buff, size, 0, (struct sockaddr*) &dest, sizeof(dest));
     if (nbytes < 0) {
         perror("sendto failure");
     }
@@ -178,7 +179,7 @@ int SpeedwireSocket::recvfrom(void *buff, const unsigned long size, struct socka
 
     // wait for packet data
     socklen_t srclen = sizeof(src);
-    int nbytes = ::recvfrom(fd, buff, size, 0, (struct sockaddr *) &src, &srclen);
+    int nbytes = ::recvfrom(fd, (char*)buff, size, 0, (struct sockaddr *) &src, &srclen);
     if (nbytes < 0) {
         perror("recvfrom failure");
     }
@@ -194,11 +195,12 @@ int SpeedwireSocket::recvfrom(void *buff, const unsigned long size, struct socka
 
 // close the speedwire socket
 int SpeedwireSocket::close(void) {
-    int result = ::close(fd);
-    fd = -1;
-
 #ifdef _WIN32
+    int result = closesocket(fd);
     WSACleanup();
+#else
+    int result = ::close(fd);
 #endif
+    fd = -1;
     return result;
 }

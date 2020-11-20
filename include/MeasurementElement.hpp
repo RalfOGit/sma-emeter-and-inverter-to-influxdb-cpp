@@ -1,7 +1,7 @@
 #ifndef __MEASUREMENTELEMENT_HPP__
 #define __MEASUREMENTELEMENT_HPP__
 
-#include <bits/types.h>
+#include <cstdint>
 #include <string>
 
 
@@ -58,16 +58,16 @@ public:
 class MeasurementValue {
 public:
     double       value;         // the current measurement
-    __uint32_t   timer;         // the current timestamp
-    __uint32_t   elapsed;       // time elapsed from previous timestamp to current timestamp
+    uint32_t     timer;         // the current timestamp
+    uint32_t     elapsed;       // time elapsed from previous timestamp to current timestamp
     double       sumValue;      // the sum of previous and current measurements
     unsigned int counter;       // the number of measurements included in sumValue
     bool         initial;
 
     MeasurementValue(void);
-    void setValue(__uint32_t raw_value, unsigned long divisor);
-    void setValue(__uint64_t raw_value, unsigned long divisor);
-    void setTimer(__uint32_t timer);
+    void setValue(uint32_t raw_value, unsigned long divisor);
+    void setValue(uint64_t raw_value, unsigned long divisor);
+    void setTimer(uint32_t timer);
 };
 
 #endif

@@ -1,7 +1,7 @@
 #ifndef __OBISFILTER_HPP__
 #define __OBISFILTER_HPP__
 
-#include <bits/types.h>
+#include <cstdint>
 #include <vector>
 #include <ObisElement.hpp>
 
@@ -29,7 +29,7 @@ public:
     void addConsumer   (ObisConsumer *obisConsumer);
     void removeConsumer(ObisConsumer *obisConsumer);
 
-    bool consume(const void *const obis, const __uint32_t timer) const;
+    bool consume(const void *const obis, const uint32_t timer) const;
     const ObisFilterElement *const filter(const ObisElement &element) const;
     void produce(const ObisFilterElement &element) const;
 };
