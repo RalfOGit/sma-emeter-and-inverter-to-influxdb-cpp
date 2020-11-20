@@ -1,5 +1,5 @@
 # sma-emeter-grabber
-A small executable to grab measurements from an SMA-Emeter and pass them to InfluxDB
+A small executable to grab measurements from an SMA-Emeter(TM) and pass them to InfluxDB
 
 SMA Emeters(TM) send out udp packets including electrical power and energy measurements at intervals of 1000m. Each udp packet is 600 bytes long and its format is specified in an openly available specification document (search the web and you will find it).
 
