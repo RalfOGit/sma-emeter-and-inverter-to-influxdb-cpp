@@ -10,3 +10,8 @@ This small executable listens to the corresponding SMA Speedwire(TM) multicast g
 The software comes as is. No warrantees whatsoever are given. There is neither a GUI nor a configuration file. Configurations must be tweaked by modifying main.cpp. InfluxDB specific configurations are found in ObisProcessor.cpp.
 
 The code relies on the InfluxDB C++ client library written by Adam Wegrzynek https://github.com/awegrzyn/influxdb-cxx.
+
+It has been written on CentOS 8, using VSCode and it comes with a simple makefile supporting the following commands:
+- make clean
+- make debug
+- make release
