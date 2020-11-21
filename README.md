@@ -15,3 +15,7 @@ It has been written on CentOS 8(TM), using VSCode(TM) and it comes with a simple
 - make clean
 - make debug
 - make release
+
+The code also compiles on Visual Studio 2017 and runs on Windows 10.
+
+You will need to open your local firewall for udp packets on port 9522.
