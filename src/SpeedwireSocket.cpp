@@ -12,7 +12,7 @@
     #include <sys/socket.h>
     #include <netinet/in.h>
     #include <arpa/inet.h>
-    #include <unistd.h> // for sleep()
+    #include <unistd.h>	 // for sleep()
 #endif
 
 #include <cstdint>
@@ -62,14 +62,14 @@ int SpeedwireSocket::open(void) {
 #ifdef _WIN32
     // initialize Windows Socket API with given VERSION.
     WSADATA wsaData;
-    if (WSAStartup(0x0101, &wsaData)) {
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData)) {
         perror("WSAStartup failure");
         return -1;
     }
 #endif
 
     // create what looks like an ordinary UDP socket
-    int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+	int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (fd < 0) {
         perror("cannot create socket");
         return -1;
@@ -81,13 +81,14 @@ int SpeedwireSocket::open(void) {
         perror("Reusing ADDR failed");
         return -1;
     }
-
+#if 0
     // allow packet info to be returned by recvmsg()
     uint32_t info = 1;
     if ( setsockopt(fd, SOL_SOCKET, IP_PKTINFO, (char*)&info, sizeof(info)) < 0 ) { // (char *) cast for WIN32 compatibility
         perror("Reusing ADDR failed");
         return -1;
     }
+#endif
 
     // set up interface(s) to bind to
     struct sockaddr_in addr;
@@ -102,8 +103,31 @@ int SpeedwireSocket::open(void) {
         return -1;
     }
 
-#if 1
     // use setsockopt() to request that the kernel joins a multicast group
+#ifdef _WIN32
+	char hostname[256];
+	if (gethostname(hostname, sizeof(hostname)) == SOCKET_ERROR) {
+		perror("gethostname");
+		return -1;
+	}
+	struct hostent *phe = gethostbyname(hostname);
+	if (phe == 0) {
+		perror("gethostbyname");
+		return -1;
+	}
+	// windows requires to join a multicast group separately for each interface
+	for (int i = 0; phe->h_addr_list[i] != 0; ++i) {
+		struct in_addr addr;
+		memcpy(&addr, phe->h_addr_list[i], sizeof(struct in_addr));
+		struct ip_mreq mreq;
+		mreq.imr_multiaddr.s_addr = inet_addr(multicast_group);
+		mreq.imr_interface.s_addr = addr.s_addr;
+		if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*) &mreq, sizeof(mreq)) < 0) {
+			perror("setsockopt");
+			return -1;
+		}
+	}
+#else
     struct ip_mreq mreq;
     mreq.imr_multiaddr.s_addr = inet_addr(multicast_group);
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
@@ -111,9 +135,13 @@ int SpeedwireSocket::open(void) {
         perror("setsockopt");
         return -1;
     }
+#endif
 
     // wait until multicast membership messages have been sent
-    ::sleep(1);
+#ifdef _WIN32
+    ::Sleep(1000);	// wait for 1000 ms
+#else
+	::sleep(1);		// wait for 1 s
 #endif
 
     return fd;
@@ -150,7 +178,7 @@ int SpeedwireSocket::sendto(const void *const buff, const unsigned long size, co
 #endif
 
     // now just sendto() our destination
-    int nbytes = ::sendto(fd, (char*)buff, size, 0, (struct sockaddr*) &dest, sizeof(dest));
+    int nbytes = ::sendto(fd, (char*)buff, size, 0, (struct sockaddr*) &dest, sizeof(dest)); // (char *) cast for WIN32 compatibility
     if (nbytes < 0) {
         perror("sendto failure");
     }
@@ -165,7 +193,6 @@ int SpeedwireSocket::recv(void *buff, const unsigned long size) {
     memset(&addr, 0, sizeof(addr));
 
     // wait for packet data
-    socklen_t addrlen = sizeof(addr);
     int nbytes = recvfrom(buff, size, addr);
     if (nbytes < 0) {
         perror("recvfrom failure");
@@ -179,7 +206,7 @@ int SpeedwireSocket::recvfrom(void *buff, const unsigned long size, struct socka
 
     // wait for packet data
     socklen_t srclen = sizeof(src);
-    int nbytes = ::recvfrom(fd, (char*)buff, size, 0, (struct sockaddr *) &src, &srclen);
+    int nbytes = ::recvfrom(fd, (char*)buff, size, 0, (struct sockaddr *) &src, &srclen); // (char *) cast for WIN32 compatibility
     if (nbytes < 0) {
         perror("recvfrom failure");
     }

@@ -32,3 +32,4 @@
 *.app
 emeter-grabber-debug
 emeter-grabber-release
+x64/

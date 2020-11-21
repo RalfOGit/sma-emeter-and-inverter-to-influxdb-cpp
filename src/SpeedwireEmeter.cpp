@@ -42,8 +42,8 @@ uint32_t SpeedwireEmeter::getTime(void) {
 
 // get pointer to first obis element in udp packet
 void *const SpeedwireEmeter::getFirstObisElement(void) {
-    uint8_t *const first_element = ((uint8_t *const)udp) + sma_time_offset + sma_time_size;
-    if ((first_element - udp) > size) {
+    uint8_t *first_element = udp + sma_time_offset + sma_time_size;
+    if ((std::uintptr_t)(first_element - udp) > size) {
         return NULL;
     }
     return first_element;
@@ -53,11 +53,11 @@ void *const SpeedwireEmeter::getFirstObisElement(void) {
 void *const SpeedwireEmeter::getNextObisElement(const void *const current_element) {
     uint8_t *const next_element = ((uint8_t *const)current_element) + getObisLength(current_element);
     // check if the next element including the 4-byte obis head is inside the udp packet
-    if ((next_element + 4 - udp) > size) {
+    if ((std::uintptr_t)(next_element + 4 - udp) > size) {
         return NULL;
     }
     // check if the entire next element is inside the udp packet
-    if ((next_element + getObisLength(next_element) - udp) > size ) {
+    if ((std::uintptr_t)(next_element + getObisLength(next_element) - udp) > size ) {
         return NULL;
     }
     return next_element;

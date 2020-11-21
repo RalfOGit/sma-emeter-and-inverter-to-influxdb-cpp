@@ -142,8 +142,9 @@ void SpeedwireProtocol::setUint32(void *udp_ptr, const uint32_t value) {
 }
 
 void SpeedwireProtocol::setUint64(void *udp_ptr, const uint64_t value) {
-    uint64_t hi_value = (value >> (sizeof(uint32_t)*8));
-    uint64_t lo_value = (value &  (((uint64_t)1 << (sizeof(uint32_t)*8)) - 1));
+	uint64_t mask32bit = 0x00000000ffffffff;
+    uint32_t hi_value  = (uint32_t)((value >> (sizeof(uint32_t)*8)) & mask32bit);
+    uint32_t lo_value  = (uint32_t) (value & mask32bit);
     setUint32(udp_ptr, hi_value);
     setUint32(((uint8_t*)udp_ptr) + sizeof(uint32_t), lo_value);
 }
