@@ -11,11 +11,13 @@ The software comes as is. No warrantees whatsoever are given and no responsibili
 
 The code relies on the InfluxDB(TM) C++ client library written by Adam Wegrzynek https://github.com/awegrzyn/influxdb-cxx.
 
-It has been written on CentOS 8(TM), using VSCode(TM) and it comes with a simple makefile supporting the following commands:
+The code has been tested with the following environment:
+- OS: CentOS 8(TM),   IDE: VSCode(TM)
+- OS: Windows 10(TM), IDE: Visual Studio 2017(TM)
+
+You will need to open your local firewall for udp packets on port 9522.
+
+It comes with a simple makefile supporting the following commands:
 - make clean
 - make debug
 - make release
-
-The code also compiles on Visual Studio 2017 and runs on Windows 10.
-
-You will need to open your local firewall for udp packets on port 9522.
