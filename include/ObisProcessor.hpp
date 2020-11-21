@@ -2,8 +2,8 @@
 #define __OBISPROCESSOR_HPP__
 
 #include <cstdint>
-#include <memory>				// for std::unique_ptr
-#include <string_view>			// for std::string_view (forgotten in <InfluxDB.h>)
+#include <memory>               // for std::unique_ptr
+#include <string_view>          // for std::string_view (forgotten in <InfluxDB.h>)
 #include <ObisElement.hpp>
 #include <MeasurementElement.hpp>
 #include <ObisFilter.hpp>

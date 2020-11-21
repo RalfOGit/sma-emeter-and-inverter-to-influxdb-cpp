@@ -69,12 +69,11 @@ std::string toString(const Line line) {
 
 std::string toString(const Quantity quantity) {
     switch (quantity) {
-        case POWER:     return "power";
-        case ENERGY:    return "energy";
-        case FREQUENCY: return "frequency";
-        case PHASE:     return "phase";
-        case VOLTAGE:   return "voltage";
-        case CURRENT:   return "current";
+        case POWER:        return "power";
+        case ENERGY:       return "energy";
+        case POWER_FACTOR: return "power_factor";
+        case VOLTAGE:      return "voltage";
+        case CURRENT:      return "current";
     }
     return "undefined quantity";
 }

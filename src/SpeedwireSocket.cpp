@@ -69,7 +69,7 @@ int SpeedwireSocket::open(void) {
 #endif
 
     // create what looks like an ordinary UDP socket
-	int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (fd < 0) {
         perror("cannot create socket");
         return -1;
@@ -103,30 +103,30 @@ int SpeedwireSocket::open(void) {
         return -1;
     }
 
-    // use setsockopt() to request that the kernel joins a multicast group
+    // use setsockopt() to request that the kernel joins the multicast group
 #ifdef _WIN32
-	char hostname[256];
-	if (gethostname(hostname, sizeof(hostname)) == SOCKET_ERROR) {
-		perror("gethostname");
-		return -1;
-	}
-	struct hostent *phe = gethostbyname(hostname);
-	if (phe == 0) {
-		perror("gethostbyname");
-		return -1;
-	}
-	// windows requires to join a multicast group separately for each interface
-	for (int i = 0; phe->h_addr_list[i] != 0; ++i) {
-		struct in_addr addr;
-		memcpy(&addr, phe->h_addr_list[i], sizeof(struct in_addr));
-		struct ip_mreq mreq;
-		mreq.imr_multiaddr.s_addr = inet_addr(multicast_group);
-		mreq.imr_interface.s_addr = addr.s_addr;
-		if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*) &mreq, sizeof(mreq)) < 0) {
-			perror("setsockopt");
-			return -1;
-		}
-	}
+    char hostname[256];
+    if (gethostname(hostname, sizeof(hostname)) == SOCKET_ERROR) {
+        perror("gethostname");
+        return -1;
+    }
+    struct hostent *phe = gethostbyname(hostname);
+    if (phe == 0) {
+        perror("gethostbyname");
+        return -1;
+    }
+    // windows requires that each interface separately joins the multicast group
+    for (int i = 0; phe->h_addr_list[i] != 0; ++i) {
+        struct in_addr addr;
+        memcpy(&addr, phe->h_addr_list[i], sizeof(struct in_addr));
+        struct ip_mreq mreq;
+        mreq.imr_multiaddr.s_addr = inet_addr(multicast_group);
+        mreq.imr_interface.s_addr = addr.s_addr;
+        if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*) &mreq, sizeof(mreq)) < 0) {
+            perror("setsockopt");
+            return -1;
+        }
+    }
 #else
     struct ip_mreq mreq;
     mreq.imr_multiaddr.s_addr = inet_addr(multicast_group);
@@ -139,9 +139,9 @@ int SpeedwireSocket::open(void) {
 
     // wait until multicast membership messages have been sent
 #ifdef _WIN32
-    ::Sleep(1000);	// wait for 1000 ms
+    ::Sleep(1000);  // wait for 1000 ms
 #else
-	::sleep(1);		// wait for 1 s
+    ::sleep(1);     // wait for 1 s
 #endif
 
     return fd;

@@ -33,7 +33,7 @@ public:
 
     bool checkHeader(void);
     uint32_t getSignature(void);
-    uint16_t getTag0(void);
+    uint32_t getTag0(void);
     uint32_t getGroup(void);
     uint16_t getLength(void);
     uint16_t getNetworkVersion(void);

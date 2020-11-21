@@ -22,10 +22,9 @@ std::string toString(const Line line);
 enum Quantity {
     POWER,
     ENERGY,
-    FREQUENCY,
-    PHASE,
-    VOLTAGE,
+    POWER_FACTOR,
     CURRENT,
+    VOLTAGE
 };
 std::string toString(const Quantity quantity);
 bool isInstantaneous(const Quantity quantity);

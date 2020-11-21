@@ -83,6 +83,11 @@ uint32_t SpeedwireProtocol::getSignature(void) {
     return getUint32(udp + sma_signature_offset);
 }
 
+// get tag0
+uint32_t SpeedwireProtocol::getTag0(void) {
+    return getUint32(udp + sma_tag0_offset);
+}
+
 // get group
 uint32_t SpeedwireProtocol::getGroup(void) {
     return getUint32(udp + sma_group_offset);

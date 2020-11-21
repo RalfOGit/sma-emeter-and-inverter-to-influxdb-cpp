@@ -10,10 +10,13 @@ int main(int argc, char **argv) {
 
     SpeedwireSocket *socket = SpeedwireSocket::getInstance();
 
-    MeasurementType positive_power (Direction::POSITIVE, Type::ACTIVE, Quantity::POWER,  "W",        10);
-    MeasurementType positive_energy(Direction::POSITIVE, Type::ACTIVE, Quantity::ENERGY, "kWh", 3600000);
-    MeasurementType negative_power (Direction::NEGATIVE, Type::ACTIVE, Quantity::POWER,  "W",        10);
-    MeasurementType negative_energy(Direction::NEGATIVE, Type::ACTIVE, Quantity::ENERGY, "kWh", 3600000);
+    MeasurementType positive_power (Direction::POSITIVE, Type::ACTIVE, Quantity::POWER,        "W",        10);
+    MeasurementType positive_energy(Direction::POSITIVE, Type::ACTIVE, Quantity::ENERGY,       "kWh", 3600000);
+    MeasurementType negative_power (Direction::NEGATIVE, Type::ACTIVE, Quantity::POWER,        "W",        10);
+    MeasurementType negative_energy(Direction::NEGATIVE, Type::ACTIVE, Quantity::ENERGY,       "kWh", 3600000);
+    MeasurementType power_factor   (Direction::POSITIVE, Type::ACTIVE, Quantity::POWER_FACTOR, "phi",    1000);
+    MeasurementType voltage        (Direction::POSITIVE, Type::ACTIVE, Quantity::VOLTAGE,      "V",      1000);
+    MeasurementType current        (Direction::POSITIVE, Type::ACTIVE, Quantity::CURRENT,      "A",      1000);
 
     ObisFilter filter;
     filter.addFilter(ObisFilterElement(0, 1, 4, 0, positive_power, TOTAL));
@@ -32,6 +35,16 @@ int main(int argc, char **argv) {
     //filter.addFilter(ObisFilterElement(0,22, 8, 0, negative_energy, L1));
     //filter.addFilter(ObisFilterElement(0,42, 8, 0, negative_energy, L2)); 
     //filter.addFilter(ObisFilterElement(0,62, 8, 0, negative_energy, L3)); 
+    //filter.addFilter(ObisFilterElement(0, 13, 4, 0, power_factor, TOTAL));
+    //filter.addFilter(ObisFilterElement(0, 33, 4, 0, power_factor, L1));
+    //filter.addFilter(ObisFilterElement(0, 53, 4, 0, power_factor, L2));
+    //filter.addFilter(ObisFilterElement(0, 73, 4, 0, power_factor, L3));
+    //filter.addFilter(ObisFilterElement(0, 31, 4, 0, current, L1));
+    //filter.addFilter(ObisFilterElement(0, 51, 4, 0, current, L2));
+    //filter.addFilter(ObisFilterElement(0, 71, 4, 0, current, L3));
+    //filter.addFilter(ObisFilterElement(0, 32, 4, 0, voltage, L1));
+    //filter.addFilter(ObisFilterElement(0, 52, 4, 0, voltage, L2));
+    //filter.addFilter(ObisFilterElement(0, 72, 4, 0, voltage, L3));
 
     ObisProcessor processor(60000);
     filter.addConsumer(&processor);
