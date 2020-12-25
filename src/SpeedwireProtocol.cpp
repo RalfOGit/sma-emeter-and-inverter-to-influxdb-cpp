@@ -1,12 +1,5 @@
-#ifdef _WIN32
-    #include <Winsock2.h> // before Windows.h, else Winsock 1 conflict
-#else
-    #include <netinet/in.h>    // for ntohl(), ...
-#endif
-
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <memory.h>
+#include <SpeedwireByteEncoding.hpp>
 #include <SpeedwireProtocol.hpp>
 
 
@@ -22,6 +15,10 @@ const uint8_t SpeedwireProtocol::sma_net_v2[] = {
     0x00, 0x10
 };
 
+const uint16_t SpeedwireProtocol::sma_emeter_protocol_id    = 0x6069;
+const uint16_t SpeedwireProtocol::sma_inverter_protocol_id  = 0x6065;
+const uint16_t SpeedwireProtocol::sma_discovery_protocol_id = 0xffff;
+
 const unsigned long SpeedwireProtocol::sma_signature_offset = 0;
 const unsigned long SpeedwireProtocol::sma_signature_size = sizeof(SpeedwireProtocol::sma_signature);
 const unsigned long SpeedwireProtocol::sma_tag0_offset = SpeedwireProtocol::sma_signature_size;
@@ -34,6 +31,10 @@ const unsigned long SpeedwireProtocol::sma_netversion_offset = SpeedwireProtocol
 const unsigned long SpeedwireProtocol::sma_netversion_size = sizeof(SpeedwireProtocol::sma_net_v2);
 const unsigned long SpeedwireProtocol::sma_protocol_offset = SpeedwireProtocol::sma_netversion_offset + SpeedwireProtocol::sma_netversion_size;
 const unsigned long SpeedwireProtocol::sma_protocol_size = 2;
+const unsigned long SpeedwireProtocol::sma_long_words_offset = SpeedwireProtocol::sma_protocol_offset + SpeedwireProtocol::sma_protocol_size;
+const unsigned long SpeedwireProtocol::sma_long_words_size = 1;
+const unsigned long SpeedwireProtocol::sma_control_offset = SpeedwireProtocol::sma_long_words_offset + SpeedwireProtocol::sma_long_words_size;
+const unsigned long SpeedwireProtocol::sma_control_size = 1;
 
 
 SpeedwireProtocol::SpeedwireProtocol(const void *const udp_packet, const unsigned long udp_packet_len) {
@@ -47,7 +48,7 @@ SpeedwireProtocol::~SpeedwireProtocol(void) {
 }
 
 // test validity of packet header
-bool SpeedwireProtocol::checkHeader(void) {
+bool SpeedwireProtocol::checkHeader(void)  const {
 
     // test if udp packet is large enough to hold the header structure
     if (size < (sma_protocol_offset + sma_protocol_size)) {
@@ -79,77 +80,127 @@ bool SpeedwireProtocol::checkHeader(void) {
 }
 
 // get SMA signature
-uint32_t SpeedwireProtocol::getSignature(void) {
-    return getUint32(udp + sma_signature_offset);
+uint32_t SpeedwireProtocol::getSignature(void) const {
+    return SpeedwireByteEncoding::getUint32BigEndian(udp + sma_signature_offset);
 }
 
 // get tag0
-uint32_t SpeedwireProtocol::getTag0(void) {
-    return getUint32(udp + sma_tag0_offset);
+uint32_t SpeedwireProtocol::getTag0(void) const {
+    return SpeedwireByteEncoding::getUint32BigEndian(udp + sma_tag0_offset);
 }
 
 // get group
-uint32_t SpeedwireProtocol::getGroup(void) {
-    return getUint32(udp + sma_group_offset);
+uint32_t SpeedwireProtocol::getGroup(void) const {
+    return SpeedwireByteEncoding::getUint32BigEndian(udp + sma_group_offset);
 }
 
-// get packet length
-uint16_t SpeedwireProtocol::getLength(void) {
-    return getUint16(udp + sma_length_offset);
+// get packet length - starting to count from the the byte following protocolID, # of long words and control byte
+uint16_t SpeedwireProtocol::getLength(void) const {
+    return SpeedwireByteEncoding::getUint16BigEndian(udp + sma_length_offset);
 }
 
-// get packet length
-uint16_t SpeedwireProtocol::getNetworkVersion(void) {
-    return getUint16(udp + sma_netversion_offset);
+// get network version
+uint16_t SpeedwireProtocol::getNetworkVersion(void) const {
+    return SpeedwireByteEncoding::getUint16BigEndian(udp + sma_netversion_offset);
 }
 
 // get protocol ID
-uint16_t SpeedwireProtocol::getProtocolID(void) {
-    return getUint16(udp + sma_protocol_offset);
+uint16_t SpeedwireProtocol::getProtocolID(void) const {
+    return SpeedwireByteEncoding::getUint16BigEndian(udp + sma_protocol_offset);
 }
+
+// get number of long words (1 long word = 4 bytes)
+uint8_t SpeedwireProtocol::getLongWords(void) const {
+    return *(udp + sma_long_words_offset);
+}
+
+// get control byte
+uint8_t SpeedwireProtocol::getControl(void) const {
+    return *(udp + sma_control_offset);
+}
+
+// check if protocolID is emeter
+bool SpeedwireProtocol::isEmeterProtocolID(void) const {
+    return (getProtocolID() == sma_emeter_protocol_id);
+}
+
+// check if protocolID is inverter
+bool SpeedwireProtocol::isInverterProtocolID(void) const {
+    return (getProtocolID() == sma_inverter_protocol_id);
+}
+
+
+// set header fields according to defaults
+void SpeedwireProtocol::setDefaultHeader(void) {
+    setDefaultHeader(1, 0, 0);
+}
+void SpeedwireProtocol::setDefaultHeader(uint32_t group, uint16_t length, uint16_t protocolID) {
+    memcpy(udp + sma_signature_offset, sma_signature, sizeof(sma_signature));
+    memcpy(udp + sma_tag0_offset,      sma_tag0,      sizeof(sma_tag0));
+    setGroup(group);
+    setLength(length);
+    memcpy(udp + sma_netversion_offset, sma_net_v2, sizeof(sma_net_v2));
+    setProtocolID(protocolID);
+    setLongWords((uint8_t)(length / sizeof(uint32_t)));
+    setControl(0);
+}
+
+// set SMA signature
+void SpeedwireProtocol::setSignature(uint32_t value) {
+    SpeedwireByteEncoding::setUint32BigEndian(udp + sma_signature_offset, value);
+}
+
+// set tag0
+void SpeedwireProtocol::setTag0(uint32_t value) {
+    SpeedwireByteEncoding::setUint32BigEndian(udp + sma_tag0_offset, value);
+}
+
+// set group
+void SpeedwireProtocol::setGroup(uint32_t value) {
+    SpeedwireByteEncoding::setUint32BigEndian(udp + sma_group_offset, value);
+}
+
+// set packet length
+void SpeedwireProtocol::setLength(uint16_t value) {
+    SpeedwireByteEncoding::setUint16BigEndian(udp + sma_length_offset, value);
+
+}
+
+// set network version
+void SpeedwireProtocol::setNetworkVersion(uint16_t value) {
+    SpeedwireByteEncoding::setUint16BigEndian(udp + sma_netversion_offset, value);
+}
+
+// set protocol ID
+void SpeedwireProtocol::setProtocolID(uint16_t value) {
+    SpeedwireByteEncoding::setUint16BigEndian(udp + sma_protocol_offset, value);
+}
+
+// set number of long words (1 long word = 4 bytes)
+ void SpeedwireProtocol::setLongWords(uint8_t value) {
+    SpeedwireByteEncoding::setUint8(udp + sma_long_words_offset, value);
+}
+
+// get control byte
+void SpeedwireProtocol::setControl(uint8_t value)  {
+    SpeedwireByteEncoding::setUint8(udp + sma_control_offset, value);
+}
+
 
 // get payload offset in udp packet
-unsigned long SpeedwireProtocol::getPayloadOffset(void) {
-    return sma_protocol_offset + sma_protocol_size;
+unsigned long SpeedwireProtocol::getPayloadOffset(void) const {
+    if (getProtocolID() == sma_emeter_protocol_id) {    // emeter protocol data payload starts directly after the protocolID field
+        return sma_protocol_offset + sma_protocol_size;
+    }
+    return sma_control_offset + sma_control_size;
 }
 
-
-// methods to get and set field value from and to network byte order
-uint16_t SpeedwireProtocol::getUint16(const void *const udp_ptr) {
-    uint16_t value_in_nbo;
-    memcpy(&value_in_nbo, udp_ptr, sizeof(value_in_nbo));
-    uint16_t value = ntohs(value_in_nbo);
-    return value;
+// get pointer to udp packet
+uint8_t* SpeedwireProtocol::getPacketPointer(void) const {
+    return udp;
 }
 
-uint32_t SpeedwireProtocol::getUint32(const void *const udp_ptr) {
-    uint32_t value_in_nbo;
-    memcpy(&value_in_nbo, udp_ptr, sizeof(value_in_nbo));
-    uint32_t value = ntohl(value_in_nbo);
-    return value;
-}
-
-uint64_t SpeedwireProtocol::getUint64(const void *const udp_ptr) {
-    uint64_t hi_value = getUint32(udp_ptr);
-    uint64_t lo_value = getUint32(((uint8_t*)udp_ptr) + sizeof(uint32_t));
-    uint64_t value = (hi_value << (sizeof(uint32_t)*8)) | lo_value; 
-   return value;
-}
-
-void SpeedwireProtocol::setUint16(void *udp_ptr, const uint16_t value) {
-    uint16_t value_in_nbo = htons(value);
-    memcpy(udp_ptr, &value_in_nbo, sizeof(value_in_nbo));
-}
-
-void SpeedwireProtocol::setUint32(void *udp_ptr, const uint32_t value) {
-    uint32_t value_in_nbo = htonl(value);
-    memcpy(udp_ptr, &value_in_nbo, sizeof(value_in_nbo));
-}
-
-void SpeedwireProtocol::setUint64(void *udp_ptr, const uint64_t value) {
-	uint64_t mask32bit = 0x00000000ffffffff;
-    uint32_t hi_value  = (uint32_t)((value >> (sizeof(uint32_t)*8)) & mask32bit);
-    uint32_t lo_value  = (uint32_t) (value & mask32bit);
-    setUint32(udp_ptr, hi_value);
-    setUint32(((uint8_t*)udp_ptr) + sizeof(uint32_t), lo_value);
+// get size of udp packet
+unsigned long SpeedwireProtocol::getPacketSize(void) const {
+    return size;
 }

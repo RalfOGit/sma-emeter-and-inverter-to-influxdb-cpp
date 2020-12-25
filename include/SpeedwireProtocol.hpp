@@ -11,6 +11,7 @@ protected:
     static const uint8_t  sma_tag0[4];
     static const uint8_t  sma_net_v2[2];
 
+
     static const unsigned long sma_signature_offset;
     static const unsigned long sma_signature_size;
     static const unsigned long sma_tag0_offset;
@@ -23,30 +24,52 @@ protected:
     static const unsigned long sma_netversion_size;
     static const unsigned long sma_protocol_offset;
     static const unsigned long sma_protocol_size;
+    static const unsigned long sma_long_words_offset;
+    static const unsigned long sma_long_words_size;
+    static const unsigned long sma_control_offset;
+    static const unsigned long sma_control_size;
 
     uint8_t *udp;
     unsigned long size;
 
 public:
+
+    static const uint16_t sma_emeter_protocol_id;
+    static const uint16_t sma_inverter_protocol_id;
+    static const uint16_t sma_discovery_protocol_id;
+
     SpeedwireProtocol(const void *const udp_packet, const unsigned long udp_packet_size);
     ~SpeedwireProtocol(void);
 
-    bool checkHeader(void);
-    uint32_t getSignature(void);
-    uint32_t getTag0(void);
-    uint32_t getGroup(void);
-    uint16_t getLength(void);
-    uint16_t getNetworkVersion(void);
-    uint16_t getProtocolID(void);
-    unsigned long getPayloadOffset(void);
+    bool checkHeader(void) const;
 
-    // methods to get and set field value from and to network byte order
-    static uint16_t getUint16(const void *const udp_ptr);
-    static uint32_t getUint32(const void *const udp_ptr);
-    static uint64_t getUint64(const void *const udp_ptr);
-    static void setUint16(void *udp_ptr, const uint16_t value);
-    static void setUint32(void *udp_ptr, const uint32_t value);
-    static void setUint64(void *udp_ptr, const uint64_t value);
+    // getter methods to retrieve header fields
+    uint32_t getSignature(void) const;
+    uint32_t getTag0(void) const;
+    uint32_t getGroup(void) const;
+    uint16_t getLength(void) const;
+    uint16_t getNetworkVersion(void) const;
+    uint16_t getProtocolID(void) const;
+    uint8_t  getLongWords(void) const;
+    uint8_t  getControl(void) const;
+    bool isEmeterProtocolID(void) const;
+    bool isInverterProtocolID(void) const;
+
+    // setter methods to fill header fields
+    void setDefaultHeader(void);
+    void setDefaultHeader(uint32_t group, uint16_t length, uint16_t protocolID);
+    void setSignature(uint32_t value);
+    void setTag0(uint32_t value);
+    void setGroup(uint32_t value);
+    void setLength(uint16_t value);
+    void setNetworkVersion(uint16_t value);
+    void setProtocolID(uint16_t value);
+    void setLongWords(uint8_t value);
+    void setControl(uint8_t value);
+
+    unsigned long getPayloadOffset(void) const;     
+    uint8_t* getPacketPointer(void) const;
+    unsigned long getPacketSize(void) const;
 };
 
 #endif

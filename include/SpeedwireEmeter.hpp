@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <stdio.h>
+#include <SpeedwireProtocol.hpp>
 
 
 class SpeedwireEmeter {
@@ -20,7 +21,8 @@ protected:
     unsigned long size;
 
 public:
-    SpeedwireEmeter(const void *const udp_packet, const unsigned long udp_packet_size);
+    SpeedwireEmeter(const void* const udp_packet, const unsigned long udp_packet_size);
+    SpeedwireEmeter(SpeedwireProtocol &protocol);
     ~SpeedwireEmeter(void);
 
     // accessor methods

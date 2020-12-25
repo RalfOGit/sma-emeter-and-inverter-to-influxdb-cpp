@@ -1,6 +1,8 @@
-#include <SpeedwireSocket.hpp>
+#include <LocalHost.hpp>
+#include <SpeedwireSocketSimple.hpp>
 #include <SpeedwireProtocol.hpp>
 #include <SpeedwireEmeter.hpp>
+#include <SpeedwireDiscovery.hpp>
 #include <MeasurementElement.hpp>
 #include <ObisFilter.hpp>
 #include <ObisProcessor.hpp>
@@ -8,7 +10,11 @@
 
 int main(int argc, char **argv) {
 
-    SpeedwireSocket *socket = SpeedwireSocket::getInstance();
+    LocalHost localhost;
+    SpeedwireDiscovery discoverer(localhost);
+    discoverer.discoverDevices();
+
+    SpeedwireSocketSimple*socket = SpeedwireSocketSimple::getInstance();
 
     MeasurementType positive_power (Direction::POSITIVE, Type::ACTIVE, Quantity::POWER,        "W",        10);
     MeasurementType positive_energy(Direction::POSITIVE, Type::ACTIVE, Quantity::ENERGY,       "kWh", 3600000);
@@ -73,9 +79,6 @@ int main(int argc, char **argv) {
 
         valid = valid;
     }
-
-    //SpeedwireDiscovery::sendRequest();
-    //SpeedwireDiscovery::waitForResponse();
 
     return 0;
 }

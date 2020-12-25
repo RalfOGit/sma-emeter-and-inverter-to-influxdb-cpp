@@ -1,213 +1,410 @@
-//
-// Simple program to perform SMA speedwire device discovery
-// https://www.sma.de/fileadmin/content/global/Partner/Documents/sma_developer/SpeedwireDD-TI-de-10.pdf
-//
-
-#ifdef _WIN32
-    #include <Winsock2.h> // before Windows.h, else Winsock 1 conflict
-    #include <Ws2tcpip.h> // needed for ip_mreq definition for multicast
-    #include <Windows.h>
-#else
-    #include <sys/types.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <unistd.h>	 // for sleep()
-#endif
-
-#include <cstdint>
-#include <string.h>
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <cstring>
 #include <stdio.h>
-#include <stdlib.h>
+#include <vector>
 #include <SpeedwireSocket.hpp>
 
 
-const char      *SpeedwireSocket::multicast_group = "239.12.255.254";
-const int        SpeedwireSocket::multicast_port  = 9522;
-int              SpeedwireSocket::fd = -1;
-SpeedwireSocket *SpeedwireSocket::instance = NULL;
+/**
+ *  Class implementing a platform neutral socket abstraction for speedwire multicast traffic.
+ */
+
+// define static constants to help compare ip addresses against the wildcard addresses
+static const in_addr  IN4_ADDRESS_ANY = { 0 };    // all 0's
+static const in6_addr IN6_ADDRESS_ANY = { 0 };    // all 0's
 
 
-SpeedwireSocket::SpeedwireSocket(void) {
-    fd = -1;
+/**
+ *  Constructor
+ */
+SpeedwireSocket::SpeedwireSocket(const LocalHost &_localhost) :
+    localhost(_localhost),
+    socket_interface() {
+    socket_fd = -1;
+    socket_fd_ref_counter = (int*) malloc(sizeof(int));
+    if (socket_fd_ref_counter != NULL) *socket_fd_ref_counter = 1;
+    socket_protocol = AF_UNSPEC;
+    isInterfaceAny = false;
+
+    // configure ipv4 and ipv6 addresses for mDNS multicast traffic
+    memset(&speedwire_multicast_address_v4, 0, sizeof(speedwire_multicast_address_v4));
+    speedwire_multicast_address_v4.sin_family = AF_INET;
+    speedwire_multicast_address_v4.sin_addr = LocalHost::toInAddress("239.12.255.254");
+    speedwire_multicast_address_v4.sin_port = htons(9522);
+
+    memset(&speedwire_multicast_address_v6, 0, sizeof(speedwire_multicast_address_v6));
+    speedwire_multicast_address_v6.sin6_family = AF_INET6;
+    speedwire_multicast_address_v6.sin6_addr = LocalHost::toIn6Address("::");     // FIXME: tbd
+    speedwire_multicast_address_v6.sin6_port = htons(9522);
 }
 
+
+SpeedwireSocket::SpeedwireSocket(const SpeedwireSocket& rhs) :
+    localhost(rhs.localhost),
+    socket_interface(rhs.socket_interface) {
+    socket_fd = rhs.socket_fd;
+    socket_fd_ref_counter = rhs.socket_fd_ref_counter;
+    if (socket_fd_ref_counter != NULL) {
+        ++(*socket_fd_ref_counter);
+    }
+    socket_protocol = rhs.socket_protocol;
+    isInterfaceAny = rhs.isInterfaceAny;
+    speedwire_multicast_address_v4 = rhs.speedwire_multicast_address_v4;
+    speedwire_multicast_address_v6 = rhs.speedwire_multicast_address_v6;
+}
+
+SpeedwireSocket &SpeedwireSocket::operator=(const SpeedwireSocket& rhs) {
+    *this = rhs;  // calls the copy constructor
+    return *this;
+}
+
+
+/**
+ *  Destructor
+ */
 SpeedwireSocket::~SpeedwireSocket(void) {
-    if (fd >= 0) {
-        close();
-    }
-}
-
-// singleton
-SpeedwireSocket *SpeedwireSocket::getInstance(void) {
-    if (instance == NULL) {
-        instance = new SpeedwireSocket();
-        fd = -1;
-    }
-    if (fd < 0){
-        fd = instance->open();
-        if (fd < 0) {
-            perror("cannot open socket");
-            instance->close();
-            delete instance;
-            instance = NULL;
+    if (socket_fd_ref_counter != NULL) {
+        if (--(*socket_fd_ref_counter) <= 0) {
+            closeSocket();
+            socket_fd = -1;
+            delete socket_fd_ref_counter;
+            socket_fd_ref_counter = NULL;
         }
     }
-    return instance;
 }
 
-// open a socket to send and receive speedwire udp packets
-int SpeedwireSocket::open(void) {
 
-#ifdef _WIN32
-    // initialize Windows Socket API with given VERSION.
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData)) {
-        perror("WSAStartup failure");
-        return -1;
+/**
+ *  Get socket file descriptor
+ */
+int SpeedwireSocket::getSocketFd(void) const {
+    return socket_fd;
+}
+
+/**
+ *  Get socket protocol, either AF_INET, AF_INET6 or AF_UNSPEC
+ */
+int SpeedwireSocket::getProtocol(void) const {
+    return socket_protocol;
+}
+
+/**
+ *  Return true, if socket protocol is AF_INET
+ */
+bool SpeedwireSocket::isIpv4(void) const {
+    return (socket_protocol == AF_INET);
+}
+
+/**
+ *  Return true, if socket protocol is AF_INET6
+ */
+bool SpeedwireSocket::isIpv6(void) const {
+    return (socket_protocol == AF_INET6);
+}
+
+/**
+ *  Return true, if this socket has been opened for IN4_ADDRESS_ANY or IN6_ADDRESS_ANY
+ */
+bool SpeedwireSocket::isIpAny(void) const {
+    return isInterfaceAny;
+}
+
+/**
+ *  Get interface name, that this socket has been opened with, or ""
+ */
+const std::string &SpeedwireSocket::getLocalInterfaceAddress(void) const {
+    return socket_interface;
+}
+
+/**
+ *  Get the speedwire ipv4 multicast address
+ */
+const sockaddr_in SpeedwireSocket::getSpeedwireMulticastIn4Address(void) const {
+    return speedwire_multicast_address_v4;
+}
+
+/**
+ *  Get the speedwire ipv6 multicast address (tbd)
+ */
+const sockaddr_in6 SpeedwireSocket::getSpeedwireMulticastIn6Address(void) const {
+    return speedwire_multicast_address_v6;
+}
+
+
+/**
+ *  Open socket for the given interface; the interface is either an ipv4 interface in 
+ *  dot notation (e.g. "192.168.178.1") or an ipv6 interface in : notation
+ */
+int SpeedwireSocket::openSocket(const std::string &local_interface_address) {
+    if (local_interface_address.find_first_of('.') != std::string::npos) {
+        socket_protocol = AF_INET;
+        socket_fd = openSocketV4(local_interface_address);
     }
-#endif
+    else if (local_interface_address.find_first_of(':') != std::string::npos) {
+        socket_protocol = AF_INET6;
+        socket_fd = openSocketV6(local_interface_address);
+    }
+    else {
+        socket_protocol = AF_UNSPEC;
+        perror("openSocket error - unknown protocol");
+    }
+    socket_interface = local_interface_address;
+    return socket_fd;
+}
 
-    // create what looks like an ordinary UDP socket
-    int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+
+/**
+ *  Close socket
+ */
+int SpeedwireSocket::closeSocket(void) {
+    int result = -1;
+    if (socket_fd >= 0) {
+        //fprintf(stdout, "closeSocket %d\n", socket_fd);
+#ifdef _WIN32
+        result = closesocket(socket_fd);
+#else
+        result = close(socket_fd);
+#endif
+        socket_fd = -1;
+        socket_protocol = AF_UNSPEC;
+        socket_interface.clear();
+    }
+    return result;
+}
+
+
+/**
+ *  Open socket for the given interface described in ipv4 dot notation (e.g. "192.168.178.1")
+ */
+int SpeedwireSocket::openSocketV4(const std::string &local_interface_address) {
+
+    // convert the given interface address to socket structs
+    in_addr inaddr = localhost.toInAddress(local_interface_address);
+    isInterfaceAny = (memcmp(&inaddr, &IN4_ADDRESS_ANY, sizeof(inaddr)) == 0);    // if IN4_ADDRESS_ANY
+
+    // open socket
+    int fd = (int)socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (fd < 0) {
-        perror("cannot create socket");
         return -1;
     }
 
-    // allow multiple sockets to use the same PORT number
-    uint32_t yes = 1;
-    if ( setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&yes, sizeof(yes)) < 0 ) { // (char *) cast for WIN32 compatibility
-        perror("Reusing ADDR failed");
-        return -1;
-    }
-#if 0
-    // allow packet info to be returned by recvmsg()
-    uint32_t info = 1;
-    if ( setsockopt(fd, SOL_SOCKET, IP_PKTINFO, (char*)&info, sizeof(info)) < 0 ) { // (char *) cast for WIN32 compatibility
-        perror("Reusing ADDR failed");
-        return -1;
-    }
+    // set socket options
+    unsigned char ttl = 1;
+    unsigned char loopback = 1;
+    uint32_t reuseaddr = 1;
+    int result1 = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&reuseaddr, sizeof(reuseaddr));
+#ifdef SO_REUSEPORT
+    int result2 = setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuseaddr, sizeof(reuseaddr));
+#else
+    int result2 = 0;
 #endif
-
-    // set up interface(s) to bind to
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(multicast_port);
-
-    // bind to any available interface address
-    if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
-        perror("bind");
+    int result3 = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, (const char*)&ttl, sizeof(ttl));
+#if 0
+    int result4 = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, (const char*)&loopback, sizeof(loopback));
+#else
+    int result4 = 0;
+#endif
+    if (result1 < 0 || result2 < 0 || result3 < 0 || result4 < 0) {
+        perror("setsockopt v4 failure");
         return -1;
     }
 
-    // use setsockopt() to request that the kernel joins the multicast group
+    // bind socket to interface
+    // for udp, this defines the source(!) addresses to receive data from;
+    // the local interface that this socket will receive multicast traffic
+    // from is defined by IP_ADD_MEMBERSHIP socket option;
+    // if address is INADDR_ANY, the socket will receive unicast traffic
+    // from any local interface;
+    // for windows hosts: if address is a local interface address, the socket 
+    // will receive unicast and multicast traffic from that local interface;
+    // for linux hosts: if address is a local interface address, the socket
+    // will receive just unicast traffic from that local interface
+    struct sockaddr_in saddr;
+    memset(&saddr, 0, sizeof(saddr));
+    saddr.sin_family = AF_INET;
+    //saddr.sin_addr = inaddr;  // receive udp traffic directed to port below
+    saddr.sin_addr.s_addr = htonl(INADDR_ANY);  // receive udp traffic directed to port below
+    saddr.sin_port = speedwire_multicast_address_v4.sin_port;
+#ifdef __APPLE__
+    saddr.sin_len = sizeof(struct sockaddr_in);
+#endif
+    if (bind(fd, (struct sockaddr*)&saddr, sizeof(saddr))) {
+        perror("bind v4 failure");
+        return -1;
+    }
+
+    // join multicast group
 #ifdef _WIN32
-    char hostname[256];
-    if (gethostname(hostname, sizeof(hostname)) == SOCKET_ERROR) {
-        perror("gethostname");
-        return -1;
-    }
-    struct hostent *phe = gethostbyname(hostname);
-    if (phe == 0) {
-        perror("gethostbyname");
-        return -1;
-    }
     // windows requires that each interface separately joins the multicast group
-    for (int i = 0; phe->h_addr_list[i] != 0; ++i) {
-        struct in_addr addr;
-        memcpy(&addr, phe->h_addr_list[i], sizeof(struct in_addr));
-        struct ip_mreq mreq;
-        mreq.imr_multiaddr.s_addr = inet_addr(multicast_group);
-        mreq.imr_interface.s_addr = addr.s_addr;
-        if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*) &mreq, sizeof(mreq)) < 0) {
-            perror("setsockopt");
+    if (isInterfaceAny) {   // if IN4_ADDRESS_ANY
+        std::vector<std::string> local_ip_addresses = localhost.getLocalIPAddresses();
+        for (auto& addr : local_ip_addresses) {
+            if (addr.find(':') == std::string::npos) {
+                struct ip_mreq mreq;
+                mreq.imr_multiaddr = speedwire_multicast_address_v4.sin_addr;
+                mreq.imr_interface = localhost.toInAddress(addr);
+                if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) < 0) {
+                    perror("setsockopt");
+                    return -1;
+                }
+            }
+        }
+    }
+    else {
+        struct ip_mreq req;
+        memset(&req, 0, sizeof(req));
+        req.imr_multiaddr = speedwire_multicast_address_v4.sin_addr;
+        req.imr_interface = inaddr;
+        if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&req, sizeof(req)) < 0) {
+            perror("setsockopt IP_ADD_MEMBERSHIP failure");
             return -1;
         }
     }
 #else
-    struct ip_mreq mreq;
-    mreq.imr_multiaddr.s_addr = inet_addr(multicast_group);
-    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-    if ( setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*) &mreq, sizeof(mreq)) < 0 ){
-        perror("setsockopt");
+    struct ip_mreq req;
+    memset(&req, 0, sizeof(req));
+    req.imr_multiaddr = speedwire_multicast_address_v4.sin_addr;
+    req.imr_interface = inaddr;
+    if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&req, sizeof(req)) < 0) {
+        perror("setsockopt IP_ADD_MEMBERSHIP failure");
         return -1;
     }
 #endif
 
-    // wait until multicast membership messages have been sent
+    // define interface to use for outbound multicast and unicast traffic
+    if (!isInterfaceAny) {   // if not IN4_ADDRESS_ANY
+        if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, (const char*)&inaddr, sizeof(inaddr)) < 0) {
+            perror("setsockopt IP_MULTICAST_IF failure");
+            return -1;
+        }
 #ifdef _WIN32
-    ::Sleep(1000);  // wait for 1000 ms
-#else
-    ::sleep(1);     // wait for 1 s
+        if (setsockopt(fd, IPPROTO_IP, IP_UNICAST_IF, (const char*)&inaddr, sizeof(inaddr)) < 0) {
+            perror("setsockopt IP_UNICAST_IF failure");
+            return -1;
+        }
 #endif
+    }
+
+    // wait until multicast membership messages have been sent
+    LocalHost::sleep(1000);
 
     return fd;
 }
 
-// send udp packet to the speedwire multicast address
-int SpeedwireSocket::send(const void *const buff, const unsigned long size) {
 
-    // set up multicast destination address
-    struct sockaddr_in dest_addr;
-    memset(&dest_addr, 0, sizeof(dest_addr));
-    dest_addr.sin_family = AF_INET;
-    dest_addr.sin_addr.s_addr = inet_addr(multicast_group);
-    dest_addr.sin_port = htons(multicast_port);
+/**
+ *  Open socket for the given interface described in ipv6 interface in : notation
+ */
+int SpeedwireSocket::openSocketV6(const std::string &local_interface_address) {
 
-    // now just sendto() our destination
-    int nbytes = sendto(buff, size, dest_addr);
-    if (nbytes < 0) {
-        perror("sendto failure");
+    // convert the given interface address to socket structs
+    in6_addr inaddr = LocalHost::toIn6Address(local_interface_address);
+    isInterfaceAny = (memcmp(&inaddr, &IN6_ADDRESS_ANY, sizeof(inaddr)) == 0);    // if IN4_ADDRESS_ANY
+
+    // open socket
+    int fd = (int)socket(AF_INET6, SOCK_DGRAM, IPPROTO_IP);
+    if (fd < 0) {
+        return -1;
     }
-    return nbytes;
-}
 
-// send udp packet to the given destination address
-int SpeedwireSocket::sendto(const void *const buff, const unsigned long size, const struct sockaddr_in &dest) {
-
-#if 0
-    // if there are multiple interfaces connected to this host, configure the outbound interface
-    struct in_addr src_addr;
-    memset(&src_addr, 0, sizeof(src_addr));
-    //src_addr.s_addr = inet_addr("192.168.168.16");    // use specific interface
-    src_addr.s_addr = htonl(INADDR_ANY);                // use default interface
-    setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, &src_addr, sizeof(src_addr));
+    // set socket options
+    uint32_t hops = 1;
+    unsigned char ttl = 1;
+    unsigned char loopback = 1;
+    uint32_t reuseaddr = 1;
+    int result1 = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseaddr, sizeof(reuseaddr));
+#ifdef SO_REUSEPORT
+    int result2 = setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuseaddr, sizeof(reuseaddr));
+#else
+    int result2 = 0;
 #endif
-
-    // now just sendto() our destination
-    int nbytes = ::sendto(fd, (char*)buff, size, 0, (struct sockaddr*) &dest, sizeof(dest)); // (char *) cast for WIN32 compatibility
-    if (nbytes < 0) {
-        perror("sendto failure");
-    }
-    return nbytes;
-}
-
-// receive udp packet
-int SpeedwireSocket::recv(void *buff, const unsigned long size) {
-
-    // initialize the source address struct
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-
-    // wait for packet data
-    int nbytes = recvfrom(buff, size, addr);
-    if (nbytes < 0) {
-        perror("recvfrom failure");
+    int result3 = setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, (const char*)&hops, sizeof(hops));
+#if 0
+    int result4 = setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, (const char*)&loopback, sizeof(loopback));
+#else
+    int result4 = 0;
+#endif
+    if (result1 < 0 || result2 < 0 || result3 < 0 || result4 < 0) {
+        perror("setsockopt v6 failure");
+        return -1;
     }
 
-    return nbytes;
+    // bind socket to interface
+    // for udp, this defines the source(!) addresses to receive data from;
+    // the local interface that this socket will receive multicast traffic
+    // from is defined by IP_ADD_MEMBERSHIP socket option;
+    // if address is IN6_ADDRESS_ANY, the socket will receive unicast traffic
+    // from any local interface;
+    // for windows hosts: if address is a local interface address, the socket 
+    // will receive unicast and multicast traffic from that local interface;
+    // for linux hosts: if address is a local interface address, the socket
+    // will receive just unicast traffic from that local interface
+    struct sockaddr_in6 saddr;
+    memset(&saddr, 0, sizeof(saddr));
+    saddr.sin6_family = AF_INET6;
+    memcpy(&saddr.sin6_addr, &IN6_ADDRESS_ANY, sizeof(inaddr));  // receive udp traffic directed to port below
+    //saddr.sin6_addr = inaddr;
+    saddr.sin6_port = speedwire_multicast_address_v6.sin6_port;
+#ifdef __APPLE__
+    saddr.sin6_len = sizeof(struct sockaddr_in6);
+#endif
+    if (bind(fd, (struct sockaddr*)&saddr, sizeof(saddr))) {
+        perror("bind v6 failure");
+        return -1;
+    }
+
+    // get the ipv6 interface index
+    uint32_t ifindex = localhost.getInterfaceIndex(local_interface_address);
+    if (ifindex == -1) {
+        ifindex = 0;
+    }
+
+    // join multicast group
+    struct ipv6_mreq req;
+    memset(&req, 0, sizeof(req));
+    req.ipv6mr_multiaddr = speedwire_multicast_address_v6.sin6_addr;
+    req.ipv6mr_interface = ifindex;
+    if (setsockopt(fd, IPPROTO_IPV6, IPV6_JOIN_GROUP, (char*)&req, sizeof(req)) < 0) {
+        perror("setsockopt IPV6_JOIN_GROUP failure");
+        return -1;
+    }
+
+    // define interface to use for outbound multicast and unicast traffic
+    if (!isInterfaceAny) {   // if not IN6_ADDRESS_ANY
+        if (setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF, (const char*)&ifindex, sizeof(ifindex)) < 0) {
+            perror("setsockopt IPV6_MULTICAST_IF failure");
+            return -1;
+        }
+#ifdef _WIN32
+        if (setsockopt(fd, IPPROTO_IP, IPV6_UNICAST_IF, (const char*)&ifindex, sizeof(ifindex)) < 0) {
+            perror("setsockopt IP_UNICAST_IF failure");
+            return -1;
+        }
+#endif
+    }
+
+    // wait until multicast membership messages have been sent
+    LocalHost::sleep(1000);
+
+    return fd;
 }
 
-// receive udp packet and also provide the source address of the sender
-int SpeedwireSocket::recvfrom(void *buff, const unsigned long size, struct sockaddr_in &src) {
+
+/**
+ *  Receive udp packet from an ipv4 socket and also provide the source address of the sender
+ */
+int SpeedwireSocket::recvfrom(const void *buff, const unsigned long size, struct sockaddr_in &src) const {
 
     // wait for packet data
     socklen_t srclen = sizeof(src);
-    int nbytes = ::recvfrom(fd, (char*)buff, size, 0, (struct sockaddr *) &src, &srclen); // (char *) cast for WIN32 compatibility
+    int nbytes = ::recvfrom(socket_fd, (char*)buff, size, 0, (struct sockaddr *) &src, &srclen); // (char *) cast for WIN32 compatibility
     if (nbytes < 0) {
+#ifdef _WIN32
+        int error = WSAGetLastError();
+        if (error == WSAEWOULDBLOCK) {  // this is by design, as we are using non-blocking io sockets
+            return 0;
+        }
+#endif
         perror("recvfrom failure");
     }
 
@@ -220,14 +417,97 @@ int SpeedwireSocket::recvfrom(void *buff, const unsigned long size, struct socka
     return nbytes;
 }
 
-// close the speedwire socket
-int SpeedwireSocket::close(void) {
+
+/**
+ *  Receive udp packet from an ipv6 socket and also provide the source address of the sender
+ */
+int SpeedwireSocket::recvfrom(const void *buff, const unsigned long size, struct sockaddr_in6 &src) const {
+
+    // wait for packet data
+    socklen_t srclen = sizeof(src);
+    int nbytes = ::recvfrom(socket_fd, (char*)buff, size, 0, (struct sockaddr *) &src, &srclen); // (char *) cast for WIN32 compatibility
+    if (nbytes < 0) {
 #ifdef _WIN32
-    int result = closesocket(fd);
-    WSACleanup();
-#else
-    int result = ::close(fd);
+        int error = WSAGetLastError();
+        if (error == WSAEWOULDBLOCK) {  // this is by design, as we are using non-blocking io sockets
+            return 0;
+        }
 #endif
-    fd = -1;
-    return result;
+        perror("recvfrom failure");
+    }
+
+#if 0
+    char str[256];
+    strcpy(str, inet_ntoa(src.sin_addr));
+    fprintf(stderr, "source address: %s", str);
+#endif
+
+    return nbytes;
+}
+
+
+/**
+ *  Send udp multicast packet to the speedwire multicast address
+ */
+int SpeedwireSocket::send(const void* const buff, const unsigned long size) const {
+    int nbytes = -1;
+    if (isIpv4()) {
+        nbytes = sendto(buff, size, speedwire_multicast_address_v4);
+    }
+    else if (isIpv6()) {
+        nbytes = sendto(buff, size, speedwire_multicast_address_v6);
+    }
+    return nbytes;
+}
+
+
+/**
+ *  Send udp multicast packet to the given ipv4 address
+ */
+int SpeedwireSocket::sendto(const void* const buff, const unsigned long size, const struct sockaddr_in &dest) const {
+    int nbytes = -1;
+    if (isIpv4()) {
+        nbytes = ::sendto(socket_fd, (char*)buff, size, 0, (struct sockaddr*)&dest, sizeof(dest));
+        if (nbytes < 0) {
+#ifdef _WIN32
+            int error = WSAGetLastError();
+#endif
+            perror("sendto failure");
+        }
+    }
+    return nbytes;
+}
+
+
+/**
+ *  Send udp multicast packet to the given ipv6 address
+ */
+int SpeedwireSocket::sendto(const void* const buff, const unsigned long size, const struct sockaddr_in6 &dest) const {
+    int nbytes = -1;
+    if (isIpv6()) {
+        nbytes = ::sendto(socket_fd, (char*)buff, size, 0, (struct sockaddr*)&dest, sizeof(dest));
+        if (nbytes < 0) {
+#ifdef _WIN32
+            int error = WSAGetLastError();
+#endif
+            perror("sendto failure");
+        }
+    }
+    return nbytes;
+}
+
+
+/**
+ *  Print buffer content to stdoutSend udp multicast packet to the given ipv6 address
+ */
+void SpeedwireSocket::hexdump(const void* const buff, const unsigned long size) {
+    printf("--------:");
+    for (unsigned long i = 0; i < size; i++) {
+        if ((i % 16) == 0) {
+            printf("\n%08X: ", i);
+        }
+        printf("%02X ", ((unsigned char*)buff)[i]);
+    }
+    printf("\n");
+    fflush(stdout);
 }

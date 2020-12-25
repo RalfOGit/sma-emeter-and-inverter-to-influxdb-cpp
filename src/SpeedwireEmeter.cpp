@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <SpeedwireProtocol.hpp>
+#include <SpeedwireByteEncoding.hpp>
 #include <SpeedwireEmeter.hpp>
 
 
@@ -20,6 +20,11 @@ SpeedwireEmeter::SpeedwireEmeter(const void *const udp_packet, const unsigned lo
     size = udp_packet_len;
 }
 
+SpeedwireEmeter::SpeedwireEmeter(SpeedwireProtocol& prot) {
+    udp = prot.getPacketPointer() + prot.getPayloadOffset();
+    size = prot.getPacketSize() - prot.getPayloadOffset();
+}
+
 SpeedwireEmeter::~SpeedwireEmeter(void) {
     udp = NULL;
     size = 0;
@@ -27,17 +32,17 @@ SpeedwireEmeter::~SpeedwireEmeter(void) {
 
 // get susy id
 uint16_t SpeedwireEmeter::getSusyID(void) {
-    return SpeedwireProtocol::getUint16(udp + sma_susy_id_offset);
+    return SpeedwireByteEncoding::getUint16BigEndian(udp + sma_susy_id_offset);
 }
 
 // get serial number
 uint32_t SpeedwireEmeter::getSerialNumber(void) {
-    return SpeedwireProtocol::getUint32(udp + sma_serial_number_offset);
+    return SpeedwireByteEncoding::getUint32BigEndian(udp + sma_serial_number_offset);
 }
 
 // get ticker
 uint32_t SpeedwireEmeter::getTime(void) {
-    return SpeedwireProtocol::getUint32(udp + sma_time_offset);
+    return SpeedwireByteEncoding::getUint32BigEndian(udp + sma_time_offset);
 }
 
 // get pointer to first obis element in udp packet
@@ -82,11 +87,11 @@ uint8_t SpeedwireEmeter::getObisTariff(const void *const current_element) {
 }
 
 uint32_t SpeedwireEmeter::getObisValue4(const void *const current_element) {
-    return SpeedwireProtocol::getUint32(((uint8_t*)current_element)+4);
+    return SpeedwireByteEncoding::getUint32BigEndian(((uint8_t*)current_element)+4);
 }
 
 uint64_t SpeedwireEmeter::getObisValue8(const void *const current_element) {
-    return SpeedwireProtocol::getUint64(((uint8_t*)current_element)+4);
+    return SpeedwireByteEncoding::getUint64BigEndian(((uint8_t*)current_element)+4);
 }
 
 unsigned long SpeedwireEmeter::getObisLength(const void *const current_element) {

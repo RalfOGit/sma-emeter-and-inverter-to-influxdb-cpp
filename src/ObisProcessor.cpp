@@ -6,7 +6,8 @@
 
 ObisProcessor::ObisProcessor(const unsigned long averagingTime) :  
   //influxDB(influxdb::InfluxDBFactory::Get("udp://localhost:8094/?db=test")),
-    influxDB(influxdb::InfluxDBFactory::Get("http://localhost:8086/?db=test")),
+  //influxDB(influxdb::InfluxDBFactory::Get("http://localhost:8086/?db=test")),
+    influxDB(influxdb::InfluxDBFactory::Get("http://192.168.178.16:8086/?db=test")),
     influxPoint("sma_emeter") {
     influxDB->batchOf(75);
     this->averagingTime = averagingTime;

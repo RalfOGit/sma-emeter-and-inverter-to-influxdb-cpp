@@ -2,56 +2,419 @@
 // Simple program to perform SMA speedwire device discovery
 // https://www.sma.de/fileadmin/content/global/Partner/Documents/sma_developer/SpeedwireDD-TI-de-10.pdf
 //
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#ifdef _WIN32
+#include <Winsock2.h>
+#include <Ws2tcpip.h>
+#define poll(a, b, c)  WSAPoll((a), (b), (c))
+#else
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <poll.h>
+#endif
 
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <SpeedwireDiscovery.hpp>
+#include <SpeedwireByteEncoding.hpp>
+#include <SpeedwireProtocol.hpp>
+#include <SpeedwireEmeter.hpp>
+#include <SpeedwireInverter.hpp>
 #include <SpeedwireSocket.hpp>
+#include <SpeedwireDiscovery.hpp>
 
 
-const char          *SpeedwireDiscovery::multicast_group     = "239.12.255.254";
-const int            SpeedwireDiscovery::multicast_port      = 9522;
+// multicast device discovery request packet, according to SMA documentation
+// however, this does not seem to be supported anymore with version 3.x devices
 const unsigned char  SpeedwireDiscovery::multicast_request[] = {
-    0x53, 0x4d, 0x41, 0x00, 0x00, 0x04, 0x02, 0xa0, 
-    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x20, 
-    0x00, 0x00, 0x00, 0x00
+    0x53, 0x4d, 0x41, 0x00, 0x00, 0x04, 0x02, 0xa0,     // sma signature, tag0
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x20,     // 0xffffffff group, 0x0000 length, 0x0020 "SMA Net ?", Version ?
+    0x00, 0x00, 0x00, 0x00                              // 0x0000 protocol, 0x00 #long words, 0x00 ctrl
 };
-unsigned char        SpeedwireDiscovery::multicast_response[];
 
-bool SpeedwireDiscovery::sendRequest(void) {
+// unicast device discovery request packet, according to SMA documentation
+const unsigned char  SpeedwireDiscovery::unicast_request[] = {
+    0x53, 0x4d, 0x41, 0x00, 0x00, 0x04, 0x02, 0xa0,     // sma signature, tag0
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x26, 0x00, 0x10,     // 0x26 length, 0x0010 "SMA Net 2", Version 0
+    0x60, 0x65, 0x09, 0xa0, 0xff, 0xff, 0xff, 0xff,     // 0x6065 protocol, 0x09 #long words, 0xa0 ctrl, 0xffff dst susyID any, 0xffffffff dst serial any
+    0xff, 0xff, 0x00, 0x00, 0x7d, 0x00, 0x52, 0xbe,     // 0x0000 dst cntrl, 0x007d src susy id, 0x3a28be42 src serial
+    0x28, 0x3a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // 0x0000 src cntrl, 0x0000 error code, 0x0000 fragment ID
+    0x01, 0x80, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,     // 0x8001 packet ID
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00
+};
 
-    // get speedwire socket instance
-    SpeedwireSocket *socket = SpeedwireSocket::getInstance();
-    if (socket == NULL) {
-        perror("cannot get socket instance");
-        return false;
-    }
 
-    // now just sendto() our destination!
-    int nbytes = socket->send(multicast_request, sizeof(multicast_request));
-    if (nbytes < 0) {
-        perror("sendto failure");
-        return false;
-    }
-    return true;
+/**
+ *  Constructor
+ */
+SpeedwireDiscovery::SpeedwireDiscovery(LocalHost& host) :
+    localhost(host)
+{
+    // assemble multicast device discovery packet
+    //unsigned char mreq[20];
+    //SpeedwireProtocol mcast(mreq, sizeof(mreq));
+    //mcast.setDefaultHeader(0xffffffff, 0, 0x0000);
+    //mcast.setNetworkVersion(0x0020);
+    //if (memcmp(mreq, multicast_request, sizeof(mreq) != 0)) {
+    //    perror("diff");
+    //}
+
+    // assemble unicast device discovery packet
+    //unsigned char ureq[58];
+    //SpeedwireProtocol ucast(ureq, sizeof(ureq));
+    //ucast.setDefaultHeader(1, 0x26, SpeedwireProtocol::sma_inverter_protocol_id);
+    //ucast.setControl(0xa0);
+    //SpeedwireInverter uinv(ucast);
+    //uinv.setDstSusyID(0xffff);
+    //uinv.setDstSerialNumber(0xffffffff);
+    //uinv.setDstControl(0);
+    //uinv.setSrcSusyID(0x007d);
+    //uinv.setSrcSerialNumber(0x3a28be42);
+    //uinv.setSrcControl(0);
+    //uinv.setErrorCode(0);
+    //uinv.setFragmentID(0);
+    //uinv.setPacketID(0x8001);
+    //uinv.setCommandID(0x00000200);
+    //uinv.setFirstRegisterID(0x00000000);
+    //uinv.setLastRegisterID(0x00000000);
+    //uinv.setDataUint32(0, 0x00000000);  // set trailer
+    //if (memcmp(ureq, unicast_request, sizeof(ureq) != 0)) {
+    //    perror("diff");
+    //}
 }
 
 
-int SpeedwireDiscovery::waitForResponse(void) {
+/**
+ *  Destructor - close all open sockets before clearing the device list
+ */
+SpeedwireDiscovery::~SpeedwireDiscovery(void) {
+    //for (auto& device : speedwireDevices) {
+    //    device.socket.closeSocket();
+    //}
+    speedwireDevices.clear();
+}
 
-    // get speedwire socket instance
-    SpeedwireSocket *socket = SpeedwireSocket::getInstance();
-    if (socket == NULL) {
-        perror("cannot get socket instance");
-        return false;
+
+/**
+ *  Pre-register a device, i.e. just provide the ip address of the device
+ */
+bool SpeedwireDiscovery::preRegisterDevice(const std::string peer_ip_address) {
+    SpeedwireInfo info(localhost);
+    info.peer_ip_address = peer_ip_address;
+    bool new_device = true;
+    for (auto& device : speedwireDevices) {
+        if (info.peer_ip_address == device.peer_ip_address) {
+            new_device = false;
+        }
+    }
+    if (new_device) {
+        speedwireDevices.push_back(info);
+    }
+    return new_device;
+}
+
+
+/**
+ *  Fully register a device, i.e. provide a full information data set
+ */
+bool SpeedwireDiscovery::registerDevice(const SpeedwireInfo& info) {
+    bool new_device = true;
+    for (auto& device : speedwireDevices) {
+        if (device.isPreRegistered() && info.peer_ip_address == device.peer_ip_address) {
+            device = info;
+            new_device = false;
+        }
+        else if (device.isFullyRegistered() && info == device) {
+            new_device = false;
+        }
+    }
+    if (new_device) {
+        speedwireDevices.push_back(info);
+    }
+    return new_device;
+}
+
+
+/**
+ *  Unregister a device, i.e. delete it from the device list
+ */
+void SpeedwireDiscovery::unregisterDevice(const SpeedwireInfo& info) {
+    for (std::vector<SpeedwireInfo>::iterator it = speedwireDevices.begin(); it != speedwireDevices.end(); ) {
+        if (*it == info) {
+            it = speedwireDevices.erase(it);
+        } else {
+            it++;
+        }
+    }
+}
+
+
+/**
+ *  Get a vector of all devices
+ */
+const std::vector<SpeedwireInfo>& SpeedwireDiscovery::getDevices(void) const {
+    return speedwireDevices;
+}
+
+
+/**
+ *  Try to find SMA devices on the networks connected to this host
+ */
+int SpeedwireDiscovery::discoverDevices(void) {
+
+    //int fd = (int)socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    //struct sockaddr_in addr;
+    //memset(&addr, 0, sizeof(addr));
+    //addr.sin_family = AF_INET;
+    //addr.sin_addr.s_addr = inet_addr("239.12.255.254");
+    //addr.sin_port = htons(9522);
+    //int nbytes = ::sendto(fd, (char*)multicast_request, 20, 0, (struct sockaddr*)&addr, sizeof(addr));
+    //closesocket(fd);
+
+    // get a list of all local ip addresses and open a socket for each of them
+    const std::vector<std::string>& localIPs = localhost.getLocalIPAddresses();
+    std::vector<SpeedwireSocket> sockets;
+    for (auto &local_ip : localIPs) {
+
+        // ignore ipv6 addresses, as speedwire is ipv4 only
+        if (local_ip.find(':') != std::string::npos) continue;
+
+        // open socket for local ip address
+        SpeedwireSocket socket(localhost);
+        if (socket.openSocket(local_ip) < 0) {
+            perror("cannot open recv socket instance");
+        } else {
+            sockets.push_back(socket);
+        }
     }
 
-    // now just wait for a response
-    int nbytes = socket->recv(multicast_response, sizeof(multicast_response));
-    if (nbytes < 0) {
-        perror("recv failure");
-        return -1;
+    // allocate a pollfd structure for each local ip address and populate it with the socket fds
+    struct pollfd* fds = (struct pollfd*)malloc(sizeof(struct pollfd) * sockets.size());
+    if (fds == NULL) {
+        perror("malloc failure");
+        return 0;
     }
-    return nbytes;
+    int j = 0;
+    for (auto &socket : sockets) {
+        fds[j++].fd = socket.getSocketFd();
+    }
+
+    // wait for incoming multicast packets
+    const uint64_t maxWaitTimeInMillis = 2000u;
+    uint64_t startTimeInMillis = localhost.getTickCount();
+    size_t broadcast_counter = 0;
+    size_t subnet_counter = 1;
+    size_t socket_counter = 0;
+
+    while ((localhost.getTickCount() - startTimeInMillis) < maxWaitTimeInMillis) {
+
+        // prepare pollfd structure
+        j = 0;
+        for (auto& socket : sockets) {
+            fds[j].events = POLLIN;
+            fds[j++].revents = 0;
+        }
+
+        // send discovery request packet and update counters
+        for (int i = 0; i < 10; ++i) {
+            if (sendDiscoveryPackets(sockets, broadcast_counter, subnet_counter, socket_counter)) {
+                startTimeInMillis = localhost.getTickCount();
+            }
+        }
+
+        // wait for a packet on one of the configured sockets
+        //fprintf(stdout, "poll() ...\n");
+        if (poll(fds, (uint32_t)sockets.size(), 10) < 0) {     // timeout 10 ms
+            perror("poll failed");
+            break;
+        }
+        //fprintf(stdout, "... done\n");
+
+        // determine the socket that received a packet
+        j = 0;
+        for (auto &socket : sockets) {
+            if ((fds[j].revents & POLLIN) != 0) {
+
+                // read packet data, analyze it and create a device information record
+                recvDiscoveryPackets(sockets[j]);
+            }
+            j++;
+        }
+    }
+
+    // close all sockets
+    for (auto& socket : sockets) {
+        socket.closeSocket();
+    }
+    free(fds);
+    return 0;
+}
+
+
+/**
+ *  Send discovery packets
+ *  State machine implementing the following sequence of packets:
+ *  - multicast speedwire discovery requests to all interfaces
+ *  - unicast speedwire discovery requests to all hosts on the network
+ */
+bool SpeedwireDiscovery::sendDiscoveryPackets(const std::vector<SpeedwireSocket>& sockets, size_t& broadcast_counter, size_t& subnet_counter, size_t& socket_counter) {
+
+    // sequentially first send multicast speedwire discovery requests
+    if (broadcast_counter < sockets.size()) {
+        //sockaddr_in sockaddr;
+        //sockaddr.sin_family = AF_INET;
+        //sockaddr.sin_addr = localhost.toInAddress("239.12.255.254");
+        //sockaddr.sin_port = htons(9522);
+        //int nbytes = sockets[broadcast_counter].sendto(multicast_request, sizeof(multicast_request), sockaddr);
+        int nbytes = sockets[broadcast_counter].send(multicast_request, sizeof(multicast_request));
+        //fprintf(stdout, "send broadcast discovery request to %s\n", localhost.toString(sockets[broadcast_counter].getSpeedwireMulticastIn4Address()).c_str());
+        broadcast_counter++;
+        return true;
+    }
+    // followed by unicast speedwire discovery requests
+    // FIXME: the code assumes that the local interface is connected to a /24 ip v4 subnet
+    if (subnet_counter < 255 && socket_counter < sockets.size()) {
+        const SpeedwireSocket& socket = sockets[socket_counter];
+        std::string addr = socket.getLocalInterfaceAddress();
+        std::string::size_type offs = addr.rfind('.');
+        if (offs != std::string::npos) {
+            addr = addr.substr(0, offs + 1);
+            char buff[4] = { 0 };
+            snprintf(buff, sizeof(buff), "%llu", subnet_counter);
+            addr.append(buff);
+            sockaddr_in sockaddr;
+            sockaddr.sin_family = AF_INET;
+            sockaddr.sin_addr = localhost.toInAddress(addr);
+            sockaddr.sin_port = htons(9522);
+            int nbytes = socket.sendto(unicast_request, sizeof(unicast_request), sockaddr);
+            //fprintf(stdout, "send unicast discovery request to %s\n", localhost.toString(sockaddr).c_str());
+        }
+        ++subnet_counter;
+        return true;
+    }
+    if (subnet_counter >= 255 && (socket_counter + 1) < sockets.size()) {
+        subnet_counter = 1;
+        ++socket_counter;
+        return true;
+    }
+    return false;
+}
+
+
+/**
+ *  Receive a discovery packet, analyze it and create a device information record
+ */
+bool SpeedwireDiscovery::recvDiscoveryPackets(const SpeedwireSocket& socket) {
+    bool result = false;
+
+    std::string peer_ip_address;
+    char udp_packet[1600];
+    int nbytes = 0;
+    if (socket.isIpv4()) {
+        struct sockaddr_in addr;
+        nbytes = socket.recvfrom(udp_packet, sizeof(udp_packet), addr);
+        addr.sin_port = 0;
+        peer_ip_address = localhost.toString(addr);
+    }
+    else if (socket.isIpv6()) {
+        struct sockaddr_in6 addr;
+        nbytes = socket.recvfrom(udp_packet, sizeof(udp_packet), addr);
+        addr.sin6_port = 0;
+        peer_ip_address = localhost.toString(addr);
+    }
+    if (nbytes > 0) {
+        SpeedwireProtocol protocol(udp_packet, nbytes);
+        if (protocol.checkHeader()) {
+            unsigned long payload_offset = protocol.getPayloadOffset();
+            // check for emeter protocol
+            if (protocol.getProtocolID() == 0x0001) {
+                printf("received speedwire discovery response packet\n");
+            }
+            else if (protocol.isEmeterProtocolID()) {
+                //SpeedwireSocket::hexdump(udp_packet, nbytes);
+                SpeedwireEmeter emeter(udp_packet + payload_offset, nbytes - payload_offset);
+                SpeedwireInfo info(localhost);
+                info.susyID = emeter.getSusyID();
+                info.serialNumber = emeter.getSerialNumber();
+                info.deviceClass = "Emeter";
+                info.deviceType = "Emeter";
+                info.peer_ip_address = peer_ip_address;
+                info.interface_ip_address = localhost.getMatchingLocalIPAddress(peer_ip_address);
+                if (registerDevice(info)) {
+                    printf("%s\n", info.toString().c_str());
+                    result = true;
+                }
+            }
+            // check for inverter protocol and ignore loopback packets
+            else if (protocol.isInverterProtocolID() &&
+                (nbytes != sizeof(unicast_request) || memcmp(udp_packet, unicast_request, sizeof(unicast_request)) != 0)) {
+                //SpeedwireSocket::hexdump(udp_packet, nbytes);
+                SpeedwireInverter inverter(udp_packet + payload_offset, nbytes - payload_offset);
+                SpeedwireInfo info(localhost);
+                info.susyID = inverter.getSrcSusyID();
+                info.serialNumber = inverter.getSrcSerialNumber();
+                info.deviceClass = "Inverter";
+                info.deviceType = "Inverter";
+                info.peer_ip_address = peer_ip_address;
+                info.interface_ip_address = localhost.getMatchingLocalIPAddress(peer_ip_address);
+                if (registerDevice(info)) {
+                    printf("%s\n", info.toString().c_str());
+                    result = true;
+                }
+            }
+            else if (!protocol.isInverterProtocolID()) {
+                uint16_t id = protocol.getProtocolID();
+                printf("received unknown response packet 0x%04x\n", id);
+                perror("unexpected response");
+            }
+        }
+    }
+    return result;
+}
+
+
+/*====================================*/
+
+/**
+ *  Constructor
+ *  Just initialize all member variables to a defined state; set susyId and serialNumber to 0
+ */
+SpeedwireInfo::SpeedwireInfo(const LocalHost& localhost) : susyID(0), serialNumber(0) {}
+
+
+/**
+ *  Convert speedwire information to a single line string
+ */
+std::string SpeedwireInfo::toString(void) const {
+    char buffer[256] = { 0 };
+    snprintf(buffer, sizeof(buffer), "SusyID %u  Serial %u  Class %s  Type %s  SWVersion %s  IP %s  IF %s", 
+             susyID, serialNumber, deviceClass.c_str(), deviceType.c_str(), softwareVersion.c_str(), peer_ip_address.c_str(), interface_ip_address.c_str());
+    return std::string(buffer);
+}
+
+
+/**
+ *  Compare two instances; assume that if SusyID, Serial and IP is the same, it is the same device
+ */
+bool SpeedwireInfo::operator==(const SpeedwireInfo& rhs) const {
+    return (susyID == rhs.susyID && serialNumber == rhs.serialNumber && peer_ip_address == rhs.peer_ip_address);
+}
+
+
+/*
+ *  Check if this instance is just pre-registered, i.e a device ip address is given
+ */
+bool SpeedwireInfo::isPreRegistered(void) const {
+    return (peer_ip_address.length() > 0 && susyID == 0 && serialNumber == 0);
+}
+
+
+/*
+ *  Check if this instance is fully registered, i.e all device information is given
+ */
+bool SpeedwireInfo::isFullyRegistered(void) const {
+    return (susyID != 0 && serialNumber != 0 && deviceClass.length() > 0 && deviceType.length() > 0 && 
+            /*softwareVersion.length() > 0 &&*/ peer_ip_address.length() > 0 && interface_ip_address.length() > 0);
 }
