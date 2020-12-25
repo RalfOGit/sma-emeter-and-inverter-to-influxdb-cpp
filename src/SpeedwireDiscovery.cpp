@@ -33,18 +33,6 @@ const unsigned char  SpeedwireDiscovery::multicast_request[] = {
     0x00, 0x00, 0x00, 0x00                              // 0x0000 protocol, 0x00 #long words, 0x00 ctrl
 };
 
-// unicast device discovery request packet, according to SMA documentation
-const unsigned char  SpeedwireDiscovery::unicast_request[] = {
-    0x53, 0x4d, 0x41, 0x00, 0x00, 0x04, 0x02, 0xa0,     // sma signature, tag0
-    0x00, 0x00, 0x00, 0x01, 0x00, 0x26, 0x00, 0x10,     // 0x26 length, 0x0010 "SMA Net 2", Version 0
-    0x60, 0x65, 0x09, 0xa0, 0xff, 0xff, 0xff, 0xff,     // 0x6065 protocol, 0x09 #long words, 0xa0 ctrl, 0xffff dst susyID any, 0xffffffff dst serial any
-    0xff, 0xff, 0x00, 0x00, 0x7d, 0x00, 0x52, 0xbe,     // 0x0000 dst cntrl, 0x007d src susy id, 0x3a28be42 src serial
-    0x28, 0x3a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // 0x0000 src cntrl, 0x0000 error code, 0x0000 fragment ID
-    0x01, 0x80, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,     // 0x8001 packet ID
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00
-};
-
 
 /**
  *  Constructor
@@ -60,29 +48,6 @@ SpeedwireDiscovery::SpeedwireDiscovery(LocalHost& host) :
     //if (memcmp(mreq, multicast_request, sizeof(mreq) != 0)) {
     //    perror("diff");
     //}
-
-    // assemble unicast device discovery packet
-    //unsigned char ureq[58];
-    //SpeedwireProtocol ucast(ureq, sizeof(ureq));
-    //ucast.setDefaultHeader(1, 0x26, SpeedwireProtocol::sma_inverter_protocol_id);
-    //ucast.setControl(0xa0);
-    //SpeedwireInverter uinv(ucast);
-    //uinv.setDstSusyID(0xffff);
-    //uinv.setDstSerialNumber(0xffffffff);
-    //uinv.setDstControl(0);
-    //uinv.setSrcSusyID(0x007d);
-    //uinv.setSrcSerialNumber(0x3a28be42);
-    //uinv.setSrcControl(0);
-    //uinv.setErrorCode(0);
-    //uinv.setFragmentID(0);
-    //uinv.setPacketID(0x8001);
-    //uinv.setCommandID(0x00000200);
-    //uinv.setFirstRegisterID(0x00000000);
-    //uinv.setLastRegisterID(0x00000000);
-    //uinv.setDataUint32(0, 0x00000000);  // set trailer
-    //if (memcmp(ureq, unicast_request, sizeof(ureq) != 0)) {
-    //    perror("diff");
-    //}
 }
 
 
@@ -90,9 +55,6 @@ SpeedwireDiscovery::SpeedwireDiscovery(LocalHost& host) :
  *  Destructor - close all open sockets before clearing the device list
  */
 SpeedwireDiscovery::~SpeedwireDiscovery(void) {
-    //for (auto& device : speedwireDevices) {
-    //    device.socket.closeSocket();
-    //}
     speedwireDevices.clear();
 }
 
@@ -273,32 +235,6 @@ bool SpeedwireDiscovery::sendDiscoveryPackets(const std::vector<SpeedwireSocket>
         broadcast_counter++;
         return true;
     }
-    // followed by unicast speedwire discovery requests
-    // FIXME: the code assumes that the local interface is connected to a /24 ip v4 subnet
-    if (subnet_counter < 255 && socket_counter < sockets.size()) {
-        const SpeedwireSocket& socket = sockets[socket_counter];
-        std::string addr = socket.getLocalInterfaceAddress();
-        std::string::size_type offs = addr.rfind('.');
-        if (offs != std::string::npos) {
-            addr = addr.substr(0, offs + 1);
-            char buff[4] = { 0 };
-            snprintf(buff, sizeof(buff), "%llu", subnet_counter);
-            addr.append(buff);
-            sockaddr_in sockaddr;
-            sockaddr.sin_family = AF_INET;
-            sockaddr.sin_addr = localhost.toInAddress(addr);
-            sockaddr.sin_port = htons(9522);
-            int nbytes = socket.sendto(unicast_request, sizeof(unicast_request), sockaddr);
-            //fprintf(stdout, "send unicast discovery request to %s\n", localhost.toString(sockaddr).c_str());
-        }
-        ++subnet_counter;
-        return true;
-    }
-    if (subnet_counter >= 255 && (socket_counter + 1) < sockets.size()) {
-        subnet_counter = 1;
-        ++socket_counter;
-        return true;
-    }
     return false;
 }
 
@@ -346,28 +282,6 @@ bool SpeedwireDiscovery::recvDiscoveryPackets(const SpeedwireSocket& socket) {
                     printf("%s\n", info.toString().c_str());
                     result = true;
                 }
-            }
-            // check for inverter protocol and ignore loopback packets
-            else if (protocol.isInverterProtocolID() &&
-                (nbytes != sizeof(unicast_request) || memcmp(udp_packet, unicast_request, sizeof(unicast_request)) != 0)) {
-                //SpeedwireSocket::hexdump(udp_packet, nbytes);
-                SpeedwireInverter inverter(udp_packet + payload_offset, nbytes - payload_offset);
-                SpeedwireInfo info(localhost);
-                info.susyID = inverter.getSrcSusyID();
-                info.serialNumber = inverter.getSrcSerialNumber();
-                info.deviceClass = "Inverter";
-                info.deviceType = "Inverter";
-                info.peer_ip_address = peer_ip_address;
-                info.interface_ip_address = localhost.getMatchingLocalIPAddress(peer_ip_address);
-                if (registerDevice(info)) {
-                    printf("%s\n", info.toString().c_str());
-                    result = true;
-                }
-            }
-            else if (!protocol.isInverterProtocolID()) {
-                uint16_t id = protocol.getProtocolID();
-                printf("received unknown response packet 0x%04x\n", id);
-                perror("unexpected response");
             }
         }
     }
