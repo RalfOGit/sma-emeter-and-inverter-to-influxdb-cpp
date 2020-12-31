@@ -180,7 +180,7 @@ int SpeedwireDiscovery::discoverDevices(void) {
         fds[j++].fd = socket.getSocketFd();
     }
 
-    // wait for incoming multicast packets
+    // wait for inbound multicast packets
     const uint64_t maxWaitTimeInMillis = 2000u;
     uint64_t startTimeInMillis = localhost.getTickCountInMs();
     size_t broadcast_counter = 0;
@@ -237,7 +237,6 @@ int SpeedwireDiscovery::discoverDevices(void) {
 bool SpeedwireDiscovery::sendDiscoveryPackets(const std::vector<SpeedwireSocket>& sockets, size_t& broadcast_counter, size_t& subnet_counter, size_t& socket_counter) {
 
     // sequentially first send multicast speedwire discovery requests
-    //if (broadcast_counter < sockets.size()) {
     std::vector<std::string> localIPs = localhost.getLocalIPv4Addresses();
     if (broadcast_counter < localIPs.size()) {
         const std::string addr = localIPs[broadcast_counter];
@@ -302,10 +301,11 @@ bool SpeedwireDiscovery::recvDiscoveryPackets(const SpeedwireSocket& socket) {
         SpeedwireHeader protocol(udp_packet, nbytes);
         if (protocol.checkHeader()) {
             unsigned long payload_offset = protocol.getPayloadOffset();
-            // check for emeter protocol
+            // check for speedwire multicast device discovery responses
             if (protocol.getProtocolID() == 0x0001) {
                 printf("received speedwire discovery response packet\n");
             }
+            // check for emeter protocol
             else if (protocol.isEmeterProtocolID()) {
                 //SpeedwireSocket::hexdump(udp_packet, nbytes);
                 SpeedwireEmeterProtocol emeter(udp_packet + payload_offset, nbytes - payload_offset);
@@ -363,8 +363,8 @@ SpeedwireInfo::SpeedwireInfo(const LocalHost& localhost) : susyID(0), serialNumb
  */
 std::string SpeedwireInfo::toString(void) const {
     char buffer[256] = { 0 };
-    snprintf(buffer, sizeof(buffer), "SusyID %u  Serial %u  Class %s  Type %s  SWVersion %s  IP %s  IF %s", 
-             susyID, serialNumber, deviceClass.c_str(), deviceType.c_str(), softwareVersion.c_str(), peer_ip_address.c_str(), interface_ip_address.c_str());
+    snprintf(buffer, sizeof(buffer), "SusyID %u  Serial %u  Class %s  Type %s  IP %s  IF %s", 
+             susyID, serialNumber, deviceClass.c_str(), deviceType.c_str(), peer_ip_address.c_str(), interface_ip_address.c_str());
     return std::string(buffer);
 }
 
@@ -390,5 +390,5 @@ bool SpeedwireInfo::isPreRegistered(void) const {
  */
 bool SpeedwireInfo::isFullyRegistered(void) const {
     return (susyID != 0 && serialNumber != 0 && deviceClass.length() > 0 && deviceType.length() > 0 && 
-            /*softwareVersion.length() > 0 &&*/ peer_ip_address.length() > 0 && interface_ip_address.length() > 0);
+            peer_ip_address.length() > 0 && interface_ip_address.length() > 0);
 }

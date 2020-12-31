@@ -14,7 +14,6 @@ public:
     uint32_t    serialNumber;
     std::string deviceClass;
     std::string deviceType;
-    std::string softwareVersion;
     std::string peer_ip_address;
     std::string interface_ip_address;
 
