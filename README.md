@@ -7,7 +7,7 @@ SMA-Inverters(TM) provide electrical power production data on request. There is 
 
 I am using it to monitor the electrical energy consumption at the grid connection point of my house and also to measure the photovoltaic energy production of my small solar plant. Measurement data is persisted inside InfluxDB(TM) and visualized using Grafana(TM).
 
-The executable starts by discovering all SMA-Emeter(TM) and SMA-Inverter(TM) devices on all ip networks connected to the host running the executable. For discovery, it listens to inbound datagrams from the SMA Speedwire(TM) multicast group 239.12.255.254 at port 9522, and starts a unicast scan within the local subnet on port 9522. 
+The executable starts by discovering all SMA-Emeter(TM) and SMA-Inverter(TM) devices on all ip networks connected to the host running the executable. For discovery, it listens to inbound datagrams from the SMA Speedwire(TM) multicast group 239.12.255.254 at port 9522 an all connected interfaces, and starts a unicast scan within all connected local subnets on port 9522. 
 
 Afterwards it starts an infinite main loop. 
 
