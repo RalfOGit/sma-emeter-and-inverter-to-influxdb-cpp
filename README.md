@@ -15,7 +15,7 @@ Within the main loop it listens to the above mentioned SMA Speedwire(TM) multica
 
 Also within the main loop, it queries all discovered inverters at predefined regular intervals. This is done by sending udp unicast queries to each inverter and analyzing the corresponding udp unicast responses. It also passes these measurements to InfluxDB(TM). The same averaging mechanism can be applied if needed.
 
-The software comes as is. No warrantees whatsoever are given and no responsibility is assumed in case of failure. There is neither a GUI nor a configuration file. Configurations must be tweaked by modifying main.cpp. A number of obis definitions are given, some of them are commented out, since I do not need them. A few inverter command definitions are given. InfluxDB specific configurations are found in ObisProcessor.cpp. 
+The software comes as is. No warrantees whatsoever are given and no responsibility is assumed in case of failure. There is neither a GUI nor a configuration file. Configurations must be tweaked by modifying main.cpp. A number of obis definitions are given, some of them are commented out, since I do not need them. A few inverter command definitions are given. InfluxDB specific configurations are found in DataProcessor.cpp. 
 
 The code comes with a decent SMA Speedwire(TM) library implementation. It implements a full parser for the sma header and the emeter datagram structure, including obis filtering. In addition, it implements some parsing functionality for inverter query and response datagrams.
 
