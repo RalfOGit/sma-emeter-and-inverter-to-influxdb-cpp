@@ -24,7 +24,10 @@ private:
     int socket_fd;
     int *socket_fd_ref_counter;
     int socket_protocol;
-    std::string socket_interface;
+
+    std::string     socket_interface;
+    struct in_addr  socket_interface_v4;
+    struct in6_addr socket_interface_v6;
     bool isInterfaceAny;
 
     const LocalHost &localhost;
@@ -63,8 +66,10 @@ public:
 
     // send data to the socket
     int send(const void* const buff, const unsigned long size) const;
+    int sendto(const void* const buff, const unsigned long size, const struct sockaddr& dest) const;
     int sendto(const void* const buff, const unsigned long size, const struct sockaddr_in& dest) const;
     int sendto(const void* const buff, const unsigned long size, const struct sockaddr_in6& dest) const;
+    int sendto(const void* const buff, const unsigned long size, const std::string &dest) const;
 
     static void hexdump(const void* const buff, const unsigned long size);
 };

@@ -3,50 +3,50 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <SpeedwireByteEncoding.hpp>
-#include <SpeedwireEmeter.hpp>
+#include <SpeedwireEmeterProtocol.hpp>
 
 
-const unsigned long SpeedwireEmeter::sma_susy_id_offset = 0;
-const unsigned long SpeedwireEmeter::sma_susy_id_size   = 2;
-const unsigned long SpeedwireEmeter::sma_serial_number_offset = SpeedwireEmeter::sma_susy_id_size;
-const unsigned long SpeedwireEmeter::sma_serial_number_size   = 4;
-const unsigned long SpeedwireEmeter::sma_time_offset = SpeedwireEmeter::sma_serial_number_offset + SpeedwireEmeter::sma_serial_number_size;
-const unsigned long SpeedwireEmeter::sma_time_size   = 4;
-const uint8_t SpeedwireEmeter::sma_firmware_version_channel = 144;
+const unsigned long SpeedwireEmeterProtocol::sma_susy_id_offset = 0;
+const unsigned long SpeedwireEmeterProtocol::sma_susy_id_size   = 2;
+const unsigned long SpeedwireEmeterProtocol::sma_serial_number_offset = SpeedwireEmeterProtocol::sma_susy_id_size;
+const unsigned long SpeedwireEmeterProtocol::sma_serial_number_size   = 4;
+const unsigned long SpeedwireEmeterProtocol::sma_time_offset = SpeedwireEmeterProtocol::sma_serial_number_offset + SpeedwireEmeterProtocol::sma_serial_number_size;
+const unsigned long SpeedwireEmeterProtocol::sma_time_size   = 4;
+const uint8_t SpeedwireEmeterProtocol::sma_firmware_version_channel = 144;
 
 
-SpeedwireEmeter::SpeedwireEmeter(const void *const udp_packet, const unsigned long udp_packet_len) {
+SpeedwireEmeterProtocol::SpeedwireEmeterProtocol(const void *const udp_packet, const unsigned long udp_packet_len) {
     udp = (uint8_t *)udp_packet;
     size = udp_packet_len;
 }
 
-SpeedwireEmeter::SpeedwireEmeter(SpeedwireProtocol& prot) {
+SpeedwireEmeterProtocol::SpeedwireEmeterProtocol(SpeedwireHeader& prot) {
     udp = prot.getPacketPointer() + prot.getPayloadOffset();
     size = prot.getPacketSize() - prot.getPayloadOffset();
 }
 
-SpeedwireEmeter::~SpeedwireEmeter(void) {
+SpeedwireEmeterProtocol::~SpeedwireEmeterProtocol(void) {
     udp = NULL;
     size = 0;
 }
 
 // get susy id
-uint16_t SpeedwireEmeter::getSusyID(void) {
+uint16_t SpeedwireEmeterProtocol::getSusyID(void) {
     return SpeedwireByteEncoding::getUint16BigEndian(udp + sma_susy_id_offset);
 }
 
 // get serial number
-uint32_t SpeedwireEmeter::getSerialNumber(void) {
+uint32_t SpeedwireEmeterProtocol::getSerialNumber(void) {
     return SpeedwireByteEncoding::getUint32BigEndian(udp + sma_serial_number_offset);
 }
 
 // get ticker
-uint32_t SpeedwireEmeter::getTime(void) {
+uint32_t SpeedwireEmeterProtocol::getTime(void) {
     return SpeedwireByteEncoding::getUint32BigEndian(udp + sma_time_offset);
 }
 
 // get pointer to first obis element in udp packet
-void *const SpeedwireEmeter::getFirstObisElement(void) {
+void *const SpeedwireEmeterProtocol::getFirstObisElement(void) {
     uint8_t *first_element = udp + sma_time_offset + sma_time_size;
     if ((std::uintptr_t)(first_element - udp) > size) {
         return NULL;
@@ -55,7 +55,7 @@ void *const SpeedwireEmeter::getFirstObisElement(void) {
 }
 
 // get pointer to next obis element starting from the given element
-void *const SpeedwireEmeter::getNextObisElement(const void *const current_element) {
+void *const SpeedwireEmeterProtocol::getNextObisElement(const void *const current_element) {
     uint8_t *const next_element = ((uint8_t *const)current_element) + getObisLength(current_element);
     // check if the next element including the 4-byte obis head is inside the udp packet
     if ((std::uintptr_t)(next_element + 4 - udp) > size) {
@@ -70,31 +70,31 @@ void *const SpeedwireEmeter::getNextObisElement(const void *const current_elemen
 
 
 // methods to get obis information with udp_ptr pointing to the first byte of the obis field
-uint8_t SpeedwireEmeter::getObisChannel(const void *const current_element) {
+uint8_t SpeedwireEmeterProtocol::getObisChannel(const void *const current_element) {
     return ((uint8_t*)current_element)[0];
 }
 
-uint8_t SpeedwireEmeter::getObisIndex(const void *const current_element) {
+uint8_t SpeedwireEmeterProtocol::getObisIndex(const void *const current_element) {
     return ((uint8_t*)current_element)[1];
 }
 
-uint8_t SpeedwireEmeter::getObisType(const void *const current_element) {
+uint8_t SpeedwireEmeterProtocol::getObisType(const void *const current_element) {
     return ((uint8_t*)current_element)[2];
 }
 
-uint8_t SpeedwireEmeter::getObisTariff(const void *const current_element) {
+uint8_t SpeedwireEmeterProtocol::getObisTariff(const void *const current_element) {
     return ((uint8_t*)current_element)[3];
 }
 
-uint32_t SpeedwireEmeter::getObisValue4(const void *const current_element) {
+uint32_t SpeedwireEmeterProtocol::getObisValue4(const void *const current_element) {
     return SpeedwireByteEncoding::getUint32BigEndian(((uint8_t*)current_element)+4);
 }
 
-uint64_t SpeedwireEmeter::getObisValue8(const void *const current_element) {
+uint64_t SpeedwireEmeterProtocol::getObisValue8(const void *const current_element) {
     return SpeedwireByteEncoding::getUint64BigEndian(((uint8_t*)current_element)+4);
 }
 
-unsigned long SpeedwireEmeter::getObisLength(const void *const current_element) {
+unsigned long SpeedwireEmeterProtocol::getObisLength(const void *const current_element) {
     unsigned long type = getObisType(current_element);
     if (getObisChannel(current_element) == sma_firmware_version_channel) {       // the software version has a type of 0, although it has a 4 byte payload
         return 8;
@@ -102,7 +102,7 @@ unsigned long SpeedwireEmeter::getObisLength(const void *const current_element) 
     return 4 + type;
 }
 
-void SpeedwireEmeter::printObisElement(const void *const current_element, FILE *file) {
+void SpeedwireEmeterProtocol::printObisElement(const void *const current_element, FILE *file) {
     uint8_t type = getObisType(current_element);
     fprintf(file, "%d.%d.%d.%d ", getObisChannel(current_element), getObisIndex(current_element), type, getObisTariff(current_element));
     if (type == 4) {

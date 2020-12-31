@@ -3,10 +3,10 @@
 
 #include <cstdint>
 #include <stdio.h>
-#include <SpeedwireProtocol.hpp>
+#include <SpeedwireHeader.hpp>
 
 
-class SpeedwireEmeter {
+class SpeedwireEmeterProtocol {
 
 protected:
     static const unsigned long sma_susy_id_offset;
@@ -21,9 +21,9 @@ protected:
     unsigned long size;
 
 public:
-    SpeedwireEmeter(const void* const udp_packet, const unsigned long udp_packet_size);
-    SpeedwireEmeter(SpeedwireProtocol &protocol);
-    ~SpeedwireEmeter(void);
+    SpeedwireEmeterProtocol(const void* const udp_packet, const unsigned long udp_packet_size);
+    SpeedwireEmeterProtocol(SpeedwireHeader &protocol);
+    ~SpeedwireEmeterProtocol(void);
 
     // accessor methods
     uint16_t    getSusyID(void);

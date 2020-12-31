@@ -1,4 +1,4 @@
-#include <MeasurementElement.hpp>
+#include <Measurement.hpp>
 
 
 MeasurementType::MeasurementType(const Direction direction, const Type type, const Quantity quantity, 
@@ -9,11 +9,16 @@ MeasurementType::MeasurementType(const Direction direction, const Type type, con
     this->unit = unit;
     this->divisor = divisor;
     this->instaneous = isInstantaneous(quantity);
-    this->name = toString(direction).append("_").append(toString(type)).append("_").append(toString(quantity));
+    std::string direction_string = toString(direction);
+    std::string type_string      = toString(type);
+    std::string quantity_string  = toString(quantity);
+    if (direction_string.length() > 0) direction_string.append("_");
+    if (type_string.length() > 0 && quantity_string.length() > 0) type_string.append("_");
+    this->name = direction_string.append(type_string).append(quantity_string);
 }
 
 std::string MeasurementType::getFullName(const Line line) const {
-    if (line != Line::TOTAL) {
+    if (line != Line::TOTAL && line != Line::NO_LINE) {
         return std::string(name).append("_").append(toString(line));
     }
     return name;
@@ -54,38 +59,48 @@ void MeasurementValue::setTimer(uint32_t time) {
 std::string toString(const Direction direction) {
     if (direction == Direction::POSITIVE) return "positive";
     if (direction == Direction::NEGATIVE) return "negative";
+    if (direction == Direction::NO_DIRECTION) return "";
     return "undefined direction";
 }
 
 std::string toString(const Line line) {
     switch (line) {
-        case TOTAL: return "total";
-        case L1:    return "l1";
-        case L2:    return "l2";
-        case L3:    return "l3";
+        case Line::TOTAL:     return "total";
+        case Line::L1:        return "l1";
+        case Line::L2:        return "l2";
+        case Line::L3:        return "l3";
+        case Line::MPP1:      return "mpp1";
+        case Line::MPP2:      return "mpp2";
+        case Line::DEVICE_OK: return "device_ok";
+        case Line::RELAY_ON:  return "relay_on";
+        case Line::NO_LINE:   return "";
     }
     return "undefined line";
 }
 
 std::string toString(const Quantity quantity) {
     switch (quantity) {
-        case POWER:        return "power";
-        case ENERGY:       return "energy";
-        case POWER_FACTOR: return "power_factor";
-        case VOLTAGE:      return "voltage";
-        case CURRENT:      return "current";
+        case Quantity::POWER:        return "power";
+        case Quantity::ENERGY:       return "energy";
+        case Quantity::POWER_FACTOR: return "power_factor";
+        case Quantity::VOLTAGE:      return "voltage";
+        case Quantity::CURRENT:      return "current";
+        case Quantity::STATUS:       return "status";
+        case Quantity::NO_QUANTITY:  return "";
     }
     return "undefined quantity";
 }
+
 bool isInstantaneous(const Quantity quantity) {
-    return (quantity != ENERGY);
+    return (quantity != Quantity::ENERGY);
 }
 
 std::string toString(const Type type) {
     switch(type) {
-        case ACTIVE:    return "active";
-        case REACTIVE:  return "reactive";
-        case APPARENT:  return "apparent";
+        case Type::ACTIVE:    return "active";
+        case Type::REACTIVE:  return "reactive";
+        case Type::APPARENT:  return "apparent";
+        case Type::NO_TYPE:   return "";
     }
     return "undefined type";
 }

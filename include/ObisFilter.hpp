@@ -3,12 +3,12 @@
 
 #include <cstdint>
 #include <vector>
-#include <ObisElement.hpp>
+#include <ObisData.hpp>
 
 
 class ObisConsumer {
 public:
-    virtual void consume(const ObisFilterElement &element) = 0;
+    virtual void consume(const ObisFilterData &element) = 0;
 };
 
 
@@ -16,22 +16,22 @@ class ObisFilter {
 
 protected:
     std::vector<ObisConsumer*>     consumerTable;
-    std::vector<ObisFilterElement> filterTable;
+    std::vector<ObisFilterData> filterTable;
 
 public:
     ObisFilter(void);
     ~ObisFilter(void);
 
-    void addFilter   (const ObisFilterElement &entry);
-    void removeFilter(const ObisFilterElement &entry);
-    const std::vector<ObisFilterElement> &getFilter(void) const;
+    void addFilter   (const ObisFilterData &entry);
+    void removeFilter(const ObisFilterData &entry);
+    const std::vector<ObisFilterData> &getFilter(void) const;
 
     void addConsumer   (ObisConsumer *obisConsumer);
     void removeConsumer(ObisConsumer *obisConsumer);
 
     bool consume(const void *const obis, const uint32_t timer) const;
-    const ObisFilterElement *const filter(const ObisElement &element) const;
-    void produce(const ObisFilterElement &element) const;
+    const ObisFilterData *const filter(const ObisData &element) const;
+    void produce(const ObisFilterData &element) const;
 };
 
 #endif

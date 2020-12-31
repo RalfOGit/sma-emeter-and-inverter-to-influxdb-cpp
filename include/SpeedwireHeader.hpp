@@ -4,13 +4,21 @@
 #include <cstdint>
 
 
-class SpeedwireProtocol {
+/**
+ * Class for parsing and assembling of speedwire protocol headers.
+ * 
+ * The header is in the first 24 bytes of a speedwire udp packet. The header format is
+ * described in a public technical SMA document: "SMA Energy Meter Zählerprotokoll". The
+ * english version is called "SMA Energy Meter Protocol" and can be found here:
+ * https://www.sma.de/fileadmin/content/global/Partner/Documents/SMA_Labs/EMETER-Protokoll-TI-en-10.pdf
+ */
+
+class SpeedwireHeader {
 
 protected:
     static const uint8_t  sma_signature[4];
     static const uint8_t  sma_tag0[4];
     static const uint8_t  sma_net_v2[2];
-
 
     static const unsigned long sma_signature_offset;
     static const unsigned long sma_signature_size;
@@ -38,8 +46,8 @@ public:
     static const uint16_t sma_inverter_protocol_id;
     static const uint16_t sma_discovery_protocol_id;
 
-    SpeedwireProtocol(const void *const udp_packet, const unsigned long udp_packet_size);
-    ~SpeedwireProtocol(void);
+    SpeedwireHeader(const void *const udp_packet, const unsigned long udp_packet_size);
+    ~SpeedwireHeader(void);
 
     bool checkHeader(void) const;
 

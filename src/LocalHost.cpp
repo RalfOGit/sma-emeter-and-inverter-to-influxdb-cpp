@@ -79,6 +79,22 @@ const std::vector<std::string> &LocalHost::getLocalIPAddresses(void) const {
     return local_ip_addresses;
 }
 
+const std::vector<std::string> LocalHost::getLocalIPv4Addresses(void) const {
+    std::vector<std::string> addresses;
+    for (auto& a : local_ip_addresses) {
+        if (a.find(':') == std::string::npos) addresses.push_back(a);
+    }
+    return addresses;
+}
+
+const std::vector<std::string> LocalHost::getLocalIPv6Addresses(void) const {
+    std::vector<std::string> addresses;
+    for (auto& a : local_ip_addresses) {
+        if (a.find(':') != std::string::npos) addresses.push_back(a);
+    }
+    return addresses;
+}
+
 /**
  *  Setter to cache the interface names
  */
@@ -361,7 +377,7 @@ std::string LocalHost::toString(const struct sockaddr_in6 &address) {
 /**
  *  Convert an ipv4 string to an ipv4 binary address
  */
-in_addr LocalHost::toInAddress(const std::string &ipv4_address) {
+struct in_addr LocalHost::toInAddress(const std::string &ipv4_address) {
     struct in_addr addr;
     memset(&addr, 0, sizeof(addr));
     if (inet_pton(AF_INET, ipv4_address.c_str(), &(addr)) != 1) {
@@ -373,7 +389,7 @@ in_addr LocalHost::toInAddress(const std::string &ipv4_address) {
 /**
  *  Convert an ipv6 string to an ipv6 binary address
  */
-in6_addr LocalHost::toIn6Address(const std::string &ipv6_address) {
+struct in6_addr LocalHost::toIn6Address(const std::string &ipv6_address) {
     struct in6_addr addr;
     memset(&addr, 0, sizeof(addr));
     std::string::size_type imask = ipv6_address.find_first_of('%');
@@ -415,7 +431,7 @@ void LocalHost::sleep(uint32_t millis) {
 /**
  *  Platform get tick count in ms ticks
  */
-uint64_t LocalHost::getTickCount(void) {  // return a tick counter with ms resolution
+uint64_t LocalHost::getTickCountInMs(void) {  // return a tick counter with ms resolution
 #ifdef _WIN32
     return GetTickCount64();
 #else

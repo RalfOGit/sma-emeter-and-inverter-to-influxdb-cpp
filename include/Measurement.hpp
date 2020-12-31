@@ -1,38 +1,47 @@
-#ifndef __MEASUREMENTELEMENT_HPP__
-#define __MEASUREMENTELEMENT_HPP__
+#ifndef __MEASUREMENT_HPP__
+#define __MEASUREMENT_HPP__
 
 #include <cstdint>
 #include <string>
 
 
-enum Direction {
+enum class Direction {
     POSITIVE,
-    NEGATIVE
+    NEGATIVE,
+    NO_DIRECTION
 };
 std::string toString(const Direction direction);
 
-enum Line {
+enum class Line {
     TOTAL,
     L1,
     L2,
-    L3
+    L3,
+    MPP1,
+    MPP2,
+    DEVICE_OK,
+    RELAY_ON,
+    NO_LINE
 };
 std::string toString(const Line line);
 
-enum Quantity {
+enum class Quantity {
     POWER,
     ENERGY,
     POWER_FACTOR,
     CURRENT,
-    VOLTAGE
+    VOLTAGE,
+    STATUS,
+    NO_QUANTITY
 };
 std::string toString(const Quantity quantity);
 bool isInstantaneous(const Quantity quantity);
 
-enum Type {
+enum class Type {
     ACTIVE,
     REACTIVE,
-    APPARENT
+    APPARENT,
+    NO_TYPE
 };
 std::string toString(const Type type);
 

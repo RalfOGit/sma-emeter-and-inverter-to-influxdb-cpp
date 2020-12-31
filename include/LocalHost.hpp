@@ -44,6 +44,8 @@ public:
 
     // getter and setters for cached interface names
     const std::vector<std::string> &getLocalIPAddresses(void) const;
+    const std::vector<std::string> getLocalIPv4Addresses(void) const;
+    const std::vector<std::string> getLocalIPv6Addresses(void) const;
     void cacheLocalIPAddresses(const std::vector<std::string> &interfaces);
     const std::string getMatchingLocalIPAddress(std::string ip_address) const;
 
@@ -66,8 +68,8 @@ public:
     static std::string toString(const struct sockaddr_in &address);
     static std::string toString(const struct sockaddr_in6 &address);
 
-    static in_addr  toInAddress(const std::string &ipv4_address);
-    static in6_addr toIn6Address(const std::string &ipv6_address);
+    static struct in_addr  toInAddress(const std::string &ipv4_address);
+    static struct in6_addr toIn6Address(const std::string &ipv6_address);
 
     // remove non-ip characters like []%/, subnet masks, escape characters, etc
     static const std::string stripIPAddress(const std::string& ip_address);
@@ -76,7 +78,7 @@ public:
     static void sleep(uint32_t millis);
 
     // platform neutral get tick count method
-    static uint64_t getTickCount(void);
+    static uint64_t getTickCountInMs(void);
 };
 
 #endif
