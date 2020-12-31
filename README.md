@@ -1,5 +1,5 @@
 # SMA-Emeter and SMA-Inverter to InfluxDB 
-A C++ executable to grab measurements from an SMA-Emeter(TM) and SMA-Inverter(TM) and pass them to InfluxDB(TM).
+A C++ executable to grab measurements from SMA-Emeters(TM) and SMA-Inverters(TM) and pass them to InfluxDB(TM).
 
 SMA-Emeters(TM) send out udp packets including electrical power and energy measurements at intervals of 1000ms. Each udp packet is 600 bytes long and its format is specified in an publicly available specification document provided by the manufacturer.
 
