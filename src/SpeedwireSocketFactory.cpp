@@ -18,7 +18,7 @@ SpeedwireSocketFactory* SpeedwireSocketFactory::getInstance(const LocalHost& loc
         //Strategy strategy = Strategy::ONE_SINGLE_SOCKET;
 #else 
         // for linux hosts, the following strategies will work
-        Strategy strategy = Strategy::ONE_MULTICAST_SOCKET_AND_ONE_SOCKET_FOR_EACH_INTERFACE;
+        Strategy strategy = Strategy::ONE_MULTICAST_SOCKET_AND_ONE_UNICAST_SOCKET_FOR_EACH_INTERFACE;
         //Strategy strategy = Strategy::ONE_SINGLE_SOCKET;
 #endif
         instance = new SpeedwireSocketFactory(localhost, strategy);

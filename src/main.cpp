@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     query_map[0x00416401] = SpeedwireFilterData(COMMAND_STATUS_QUERY, 0x00416400, 0x01, 0x08, 0, NULL, 0, inverter_relay,  Line::RELAY_ON);
 
     // configure processing chain
-    DataProcessor processor(10000);
+    DataProcessor processor(60000);
     filter.addConsumer(&processor);
 
     // open socket(s) to receive sma emeter packets from any local interface

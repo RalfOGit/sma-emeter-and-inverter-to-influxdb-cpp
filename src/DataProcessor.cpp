@@ -127,10 +127,22 @@ void DataProcessor::produce(const bool firstInBlock, const MeasurementType &type
     if (firstInBlock) {
         influxDB.get()->flushBuffer();
     }
-    influxPoint.addTag("direction", toString(type.direction));
-    influxPoint.addTag("quantity", toString(type.quantity));
-    influxPoint.addTag("type", toString(type.type));
-    influxPoint.addTag("line", toString(line));
+    std::string str_direction(toString(type.direction));
+    std::string str_quantity(toString(type.quantity));
+    std::string str_type(toString(type.type));
+    std::string str_line(toString(line));
+    if (str_direction.length() > 0) {
+        influxPoint.addTag("direction", str_direction);
+    }
+    if (str_quantity.length() > 0) {
+        influxPoint.addTag("quantity", str_quantity);
+    }
+    if (str_type.length() > 0) {
+        influxPoint.addTag("type", str_type);
+    }
+    if (str_line.length() > 0) {
+        influxPoint.addTag("line", str_line);
+    }
 
     influxPoint = influxPoint.addField("value", value);
 
