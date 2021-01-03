@@ -33,7 +33,10 @@ public:
 
     virtual void consume(const ObisFilterData &element);
     virtual void consume(const SpeedwireFilterData& element);
-    void produce(const bool firstInBlock, const MeasurementType &type, const Line, const double value);
+    void flush(void);
+
+    void produce(const std::string &device, const MeasurementType &type, const Line, const double value);
+
 };
 
 #endif

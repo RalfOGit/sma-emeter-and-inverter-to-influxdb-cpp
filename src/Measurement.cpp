@@ -59,6 +59,7 @@ void MeasurementValue::setTimer(uint32_t time) {
 std::string toString(const Direction direction) {
     if (direction == Direction::POSITIVE) return "positive";
     if (direction == Direction::NEGATIVE) return "negative";
+    if (direction == Direction::SIGNED)   return "signed";
     if (direction == Direction::NO_DIRECTION) return "";
     return "undefined direction";
 }
@@ -69,8 +70,10 @@ std::string toString(const Line line) {
         case Line::L1:        return "l1";
         case Line::L2:        return "l2";
         case Line::L3:        return "l3";
+        case Line::MPP_TOTAL: return "mpp_total";
         case Line::MPP1:      return "mpp1";
         case Line::MPP2:      return "mpp2";
+        case Line::LOSS_TOTAL:return "loss_total";
         case Line::DEVICE_OK: return "device_ok";
         case Line::RELAY_ON:  return "relay_on";
         case Line::NO_LINE:   return "";
@@ -86,6 +89,7 @@ std::string toString(const Quantity quantity) {
         case Quantity::VOLTAGE:      return "voltage";
         case Quantity::CURRENT:      return "current";
         case Quantity::STATUS:       return "status";
+        case Quantity::EFFICIENCY:   return "efficiency";
         case Quantity::NO_QUANTITY:  return "";
     }
     return "undefined quantity";

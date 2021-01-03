@@ -27,7 +27,6 @@ void DataProcessor::consume(const ObisFilterData &element) {
     //element.print(stdout);
     MeasurementValue *measurement = element.measurementValue;
     if (measurement != NULL) {
-        bool firstInBlock = false;
 
         // initialize current timestamp
         if (obis_currentTimestampIsValid == false) {
@@ -35,7 +34,6 @@ void DataProcessor::consume(const ObisFilterData &element) {
         }
         // check if this is the first measurement of a new measurement block
         else if (measurement->timer != obis_currentTimestamp) {
-            firstInBlock = true;
             obis_remainder += measurement->elapsed;
             obis_averagingTimeReached = (obis_remainder >= averagingTime);
             if  (obis_averagingTimeReached == true) {
@@ -65,25 +63,23 @@ void DataProcessor::consume(const ObisFilterData &element) {
             } else {
                 value = measurement->value;
             }
-            produce(firstInBlock, element.measurementType, element.line, value);
+            produce("meter", element.measurementType, element.line, value);
         }
     }
 }
 
 
 void DataProcessor::consume(const SpeedwireFilterData& element) {
-    //element.print(stdout);
+    //element.print(stdout); fprintf(stdout, "speedwire_currentTimestamp %ld\n", speedwire_currentTimestamp);
     MeasurementValue* measurement = element.measurementValue;
     if (measurement != NULL) {
-        bool firstInBlock = false;
 
         // initialize current timestamp
         if (speedwire_currentTimestampIsValid == false) {
             speedwire_currentTimestampIsValid = true;
         }
         // check if this is the first measurement of a new measurement block
-        else if ((measurement->timer - speedwire_currentTimestamp) > 2) {   // inverter time may increase during a query block
-            firstInBlock = true;
+        else if ((int32_t)(measurement->timer - speedwire_currentTimestamp) > 2 || (int32_t)(speedwire_currentTimestamp - measurement->timer) > 2) {   // inverter time may increase during a query block
             speedwire_remainder += measurement->elapsed;
             speedwire_averagingTimeReached = (speedwire_remainder >= (averagingTime / 1000));   // inverter timestamps are in seconds
             if (speedwire_averagingTimeReached == true) {
@@ -115,18 +111,22 @@ void DataProcessor::consume(const SpeedwireFilterData& element) {
             else {
                 value = measurement->value;
             }
-            produce(firstInBlock, element.measurementType, element.line, value);
+            produce("inverter", element.measurementType, element.line, value);
         }
     }
 }
 
 
-void DataProcessor::produce(const bool firstInBlock, const MeasurementType &type, const Line line, const double value) {
-    fprintf(stderr, "%d  %s  %lf\n", firstInBlock, type.getFullName(line).c_str(), value);
+void DataProcessor::flush(void) {
+    influxDB.get()->flushBuffer();
+}
 
-    if (firstInBlock) {
-        influxDB.get()->flushBuffer();
-    }
+
+void DataProcessor::produce(const std::string &device, const MeasurementType &type, const Line line, const double value) {
+    fprintf(stderr, "%s  %lf\n", type.getFullName(line).c_str(), value);
+
+    influxPoint.addTag("device", device);
+
     std::string str_direction(toString(type.direction));
     std::string str_quantity(toString(type.quantity));
     std::string str_type(toString(type.type));

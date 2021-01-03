@@ -106,6 +106,7 @@ int SpeedwireCommand::login(const SpeedwireInfo& peer, const bool user, const ch
         nrecv = recvReply(peer, reply_buffer, sizeof(reply_buffer), 1000, recvfrom);
         valid = checkReply(peer, packet_id, recvfrom, reply_buffer, nrecv);
     }
+    packet_id = (packet_id + 1) | 0x8000;
     if (valid == false) {
         perror("invalid login reply data");
         return -1;
@@ -124,7 +125,6 @@ int SpeedwireCommand::login(const SpeedwireInfo& peer, const bool user, const ch
         return -1;
     }
 
-    packet_id++;
     return 0;
 }
 
@@ -145,11 +145,12 @@ int SpeedwireCommand::logoff(const SpeedwireInfo& peer) {
     request.setSrcControl(0x0300);
     request.setErrorCode(0);
     request.setFragmentID(0);
-    request.setPacketID(packet_id++);
+    request.setPacketID(packet_id);
     request.setCommandID(0xfffd01e0);
     request.setFirstRegisterID(0xffffffff);
     request.setLastRegisterID(0x00000000);
     //request.Trailer(0);  // set trailer
+    packet_id = (packet_id + 1) | 0x8000;
 
     SocketIndex socket_index = socket_map.at(peer.interface_ip_address);
     if (socket_index >= 0) {
@@ -235,6 +236,7 @@ int SpeedwireCommand::query(const SpeedwireInfo& peer, const Command command, co
         nrecv = recvReply(peer, reply_buffer, sizeof(reply_buffer), 1000, recvfrom);
         valid = checkReply(peer, packet_id, recvfrom, reply_buffer, nrecv);
     }
+    packet_id = (packet_id + 1) | 0x8000;
     if (valid == false) {
         perror("invalid reply data");
         return -1;
@@ -284,7 +286,6 @@ int SpeedwireCommand::query(const SpeedwireInfo& peer, const Command command, co
         }
     }
 
-    packet_id++;
     return 0;
 }
 

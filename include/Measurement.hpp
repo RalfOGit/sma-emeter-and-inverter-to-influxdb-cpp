@@ -8,6 +8,7 @@
 enum class Direction {
     POSITIVE,
     NEGATIVE,
+    SIGNED,
     NO_DIRECTION
 };
 std::string toString(const Direction direction);
@@ -17,8 +18,10 @@ enum class Line {
     L1,
     L2,
     L3,
+    MPP_TOTAL,
     MPP1,
     MPP2,
+    LOSS_TOTAL,
     DEVICE_OK,
     RELAY_ON,
     NO_LINE
@@ -32,6 +35,7 @@ enum class Quantity {
     CURRENT,
     VOLTAGE,
     STATUS,
+    EFFICIENCY,
     NO_QUANTITY
 };
 std::string toString(const Quantity quantity);
