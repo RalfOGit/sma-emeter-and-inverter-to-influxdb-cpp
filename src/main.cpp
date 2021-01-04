@@ -56,22 +56,22 @@ int main(int argc, char **argv) {
 
     // define measurement filters for sma emeter packet filtering
     ObisFilter filter;
-    filter.addFilter(ObisFilterData(0, 1, 4, 0, positive_power, Line::TOTAL));
-    filter.addFilter(ObisFilterData(0,21, 4, 0, positive_power, Line::L1));
-    filter.addFilter(ObisFilterData(0,41, 4, 0, positive_power, Line::L2));
-    filter.addFilter(ObisFilterData(0,61, 4, 0, positive_power, Line::L3));
-    //filter.addFilter(ObisFilterData(0, 1, 8, 0, positive_energy, Line::TOTAL));
-    //filter.addFilter(ObisFilterData(0,21, 8, 0, positive_energy, Line::L1));
-    //filter.addFilter(ObisFilterData(0,41, 8, 0, positive_energy, Line::L2));
-    //filter.addFilter(ObisFilterData(0,61, 8, 0, positive_energy, Line::L3));
-    filter.addFilter(ObisFilterData(0, 2, 4, 0, negative_power, Line::TOTAL));
-    filter.addFilter(ObisFilterData(0,22, 4, 0, negative_power, Line::L1));
-    filter.addFilter(ObisFilterData(0,42, 4, 0, negative_power, Line::L2));  
-    filter.addFilter(ObisFilterData(0,62, 4, 0, negative_power, Line::L3));  
-    //filter.addFilter(ObisFilterData(0, 2, 8, 0, negative_energy, Line::TOTAL));
-    //filter.addFilter(ObisFilterData(0,22, 8, 0, negative_energy, Line::L1));
-    //filter.addFilter(ObisFilterData(0,42, 8, 0, negative_energy, Line::L2)); 
-    //filter.addFilter(ObisFilterData(0,62, 8, 0, negative_energy, Line::L3)); 
+    filter.addFilter(ObisFilterData(0,  1, 4, 0, positive_power, Line::TOTAL));
+    filter.addFilter(ObisFilterData(0, 21, 4, 0, positive_power, Line::L1));
+    filter.addFilter(ObisFilterData(0, 41, 4, 0, positive_power, Line::L2));
+    filter.addFilter(ObisFilterData(0, 61, 4, 0, positive_power, Line::L3));
+    //filter.addFilter(ObisFilterData(0,  1, 8, 0, positive_energy, Line::TOTAL));
+    //filter.addFilter(ObisFilterData(0, 21, 8, 0, positive_energy, Line::L1));
+    //filter.addFilter(ObisFilterData(0, 41, 8, 0, positive_energy, Line::L2));
+    //filter.addFilter(ObisFilterData(0, 61, 8, 0, positive_energy, Line::L3));
+    filter.addFilter(ObisFilterData(0,  2, 4, 0, negative_power, Line::TOTAL));
+    filter.addFilter(ObisFilterData(0, 22, 4, 0, negative_power, Line::L1));
+    filter.addFilter(ObisFilterData(0, 42, 4, 0, negative_power, Line::L2));  
+    filter.addFilter(ObisFilterData(0, 62, 4, 0, negative_power, Line::L3));  
+    //filter.addFilter(ObisFilterData(0,  2, 8, 0, negative_energy, Line::TOTAL));
+    //filter.addFilter(ObisFilterData(0, 22, 8, 0, negative_energy, Line::L1));
+    //filter.addFilter(ObisFilterData(0, 42, 8, 0, negative_energy, Line::L2)); 
+    //filter.addFilter(ObisFilterData(0, 62, 8, 0, negative_energy, Line::L3)); 
     //filter.addFilter(ObisFilterData(0, 13, 4, 0, power_factor, Line::TOTAL));
     //filter.addFilter(ObisFilterData(0, 33, 4, 0, power_factor, Line::L1));
     //filter.addFilter(ObisFilterData(0, 53, 4, 0, power_factor, Line::L2));
@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
     std::vector<SpeedwireSocket> sockets = SpeedwireSocketFactory::getInstance(localhost)->getRecvSockets(SpeedwireSocketFactory::MULTICAST, localhost.getLocalIPv4Addresses());
     struct pollfd* fds = (struct pollfd *) malloc(sizeof(struct pollfd) * sockets.size());
 
-    const unsigned long query_inverter_interval_in_ms = 10000;
+    const unsigned long query_inverter_interval_in_ms = 30000;
     const unsigned long poll_timeout_in_ms = 2000;
     unsigned char multicast_packet[1024];
 

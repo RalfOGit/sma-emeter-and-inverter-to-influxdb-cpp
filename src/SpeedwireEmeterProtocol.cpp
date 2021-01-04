@@ -105,7 +105,7 @@ unsigned long SpeedwireEmeterProtocol::getObisLength(const void *const current_e
 void SpeedwireEmeterProtocol::printObisElement(const void *const current_element, FILE *file) {
     uint8_t type = getObisType(current_element);
     fprintf(file, "%d.%d.%d.%d ", getObisChannel(current_element), getObisIndex(current_element), type, getObisTariff(current_element));
-    if (type == 4) {
+    if (type == 4 || type == 7) {
         fprintf(file, "0x%08lx %lu\n", getObisValue4(current_element), getObisValue4(current_element));
     }
     else if (type == 8) {

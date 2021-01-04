@@ -77,6 +77,7 @@ public:
     bool         initial;
 
     MeasurementValue(void);
+    void setValue(int32_t  raw_value, unsigned long divisor);
     void setValue(uint32_t raw_value, unsigned long divisor);
     void setValue(uint64_t raw_value, unsigned long divisor);
     void setTimer(uint32_t timer);

@@ -35,6 +35,10 @@ MeasurementValue::MeasurementValue(void) {
     initial = true;
 }
 
+void MeasurementValue::setValue(int32_t raw_value, unsigned long divisor) {
+    value = (double)raw_value / (double)divisor;
+}
+
 void MeasurementValue::setValue(uint32_t raw_value, unsigned long divisor) {
     value = (double)raw_value / (double)divisor;
 }

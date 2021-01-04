@@ -48,8 +48,13 @@ bool ObisFilter::consume(const void *const obis, const uint32_t timer) const {
     const ObisFilterData *const filteredElement = filter(element);
     if (filteredElement != NULL && filteredElement->measurementValue != NULL) {
         MeasurementValue *mvalue = filteredElement->measurementValue;
-        if (filteredElement->type == 4 || filteredElement->type == 7) {
-            mvalue->setValue(SpeedwireEmeterProtocol::getObisValue4(obis), filteredElement->measurementType.divisor);
+        if (filteredElement->type == 4) {
+            mvalue->setValue((uint32_t)SpeedwireEmeterProtocol::getObisValue4(obis), filteredElement->measurementType.divisor);
+            mvalue->setTimer(timer);
+            produce(*filteredElement);
+        }
+        else if (filteredElement->type == 7) {
+            mvalue->setValue((int32_t)SpeedwireEmeterProtocol::getObisValue4(obis), filteredElement->measurementType.divisor);
             mvalue->setTimer(timer);
             produce(*filteredElement);
         }
