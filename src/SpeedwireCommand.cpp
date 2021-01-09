@@ -237,8 +237,12 @@ int SpeedwireCommand::query(const SpeedwireInfo& peer, const Command command, co
         valid = checkReply(peer, packet_id, recvfrom, reply_buffer, nrecv);
     }
     packet_id = (packet_id + 1) | 0x8000;
+    if (nrecv == 0) {
+        perror("receive timeout");
+        return -1;
+    }
     if (valid == false) {
-        perror("invalid reply data");
+        perror("invalid reply data or receive error");
         return -1;
     }
 
@@ -247,7 +251,12 @@ int SpeedwireCommand::query(const SpeedwireInfo& peer, const Command command, co
     SpeedwireInverterProtocol reply(reply_header);
     uint16_t result = reply.getErrorCode();
     if (result != 0x0000) {
-        perror("query error code received");
+        if (result == 0x0017) {
+            perror("query error code 0x0017 received - lost connection - not authenticated");
+        }
+        else {
+            perror("query error code received");
+        }
         return -1;
     }
 
@@ -340,33 +349,80 @@ int SpeedwireCommand::recvReply(const SpeedwireInfo& peer, void* buff, const siz
  *  Check reply packet for correctness
  */
 bool SpeedwireCommand::checkReply(const SpeedwireInfo& peer, const uint16_t packet_id, const struct sockaddr& recvfrom, const void* const buff, const size_t buff_size) const {
+    if (buff_size == 0) return false;                       // timeout
     if (buff == NULL) return false;
-    if (buff_size < (20 + 8 + 8 + 6)) return false;                         // up to and including packetID
+
+    if (buff_size < (20 + 8 + 8 + 6)) {                     // up to and including packetID
+        printf("buff_size too small for reply packet:  %u < (20 + 8 + 8 + 6) bytes\n", (unsigned)buff_size);
+        return false;
+    }
 
     SpeedwireHeader header(buff, buff_size);
-    if (header.checkHeader() == false) return false;
-    if (header.isInverterProtocolID() == false) return false;
-    if ((header.getLength() + (size_t)20) > buff_size) return false;        // packet length - starting to count from the the byte following protocolID, # of long words and control byte, i.e. with byte #20
-    if (header.getLength() < (20 + 8 + 8 + 6)) return false;                // up to and including packetID
-    if ((header.getLongWords() != (header.getLength() / sizeof(uint32_t)))) return false;
+    if (header.checkHeader() == false) {
+        printf("checkHeader() failed for speedwire packet\n");
+        return false;
+    }
+    if (header.isInverterProtocolID() == false) {
+        printf("protocol ID is not 0x6065\n");
+        return false;
+    }
+    if ((header.getLength() + (size_t)20) > buff_size) {    // packet length - starting to count from the byte following protocolID, # of long words and control byte, i.e. with byte #20
+        printf("length field %u and buff_size %u mismatch\n", (unsigned)header.getLength(), (unsigned)buff_size);
+        return false;
+    }
+    if (header.getLength() < (8 + 8 + 6)) {                 // up to and including packetID
+        printf("length field %u too small to hold inverter reply (8 + 8 + 6)\n", (unsigned)header.getLength());
+        return false;
+    }
+    if ((header.getLongWords() != (header.getLength() / sizeof(uint32_t)))) {
+        printf("length field %u and long words %u mismatch\n", (unsigned)header.getLength(), (unsigned)header.getLongWords());
+        return false;
+    }
 
     SpeedwireInverterProtocol inverter(header);
-    if (inverter.getDstSusyID() != 0xffff && inverter.getDstSusyID() != local_susy_id) return false;
-    if (inverter.getDstSerialNumber() != 0xffffffff && inverter.getDstSerialNumber() != local_serial_id) return false;
-    if (inverter.getSrcSusyID() != peer.susyID) return false;
-    if (inverter.getSrcSerialNumber() != peer.serialNumber) return false;
-    if (inverter.getPacketID() != packet_id) return false;
+    if (inverter.getDstSusyID() != 0xffff && inverter.getDstSusyID() != local_susy_id) {
+        printf("destination susy id %u is not local susy id %u\n", (unsigned)inverter.getDstSusyID(), (unsigned)local_susy_id);
+        return false;
+    }
+    if (inverter.getDstSerialNumber() != 0xffffffff && inverter.getDstSerialNumber() != local_serial_id) {
+        printf("destination serial number %u is not local serial number %u\n", (unsigned)inverter.getDstSerialNumber(), (unsigned)local_serial_id);
+        return false;
+    }
+    if (inverter.getSrcSusyID() != peer.susyID) {
+        printf("source susy id %u is not peer susy id %u\n", (unsigned)inverter.getSrcSusyID(), (unsigned)peer.susyID);
+        return false;
+    }
+    if (inverter.getSrcSerialNumber() != peer.serialNumber) {
+        printf("source serial number %u is not peer serial number %u\n", (unsigned)inverter.getSrcSerialNumber(), (unsigned)peer.serialNumber);
+        return false;
+    }
+    if (inverter.getPacketID() != packet_id) {
+        printf("reply packet id %u is not equal request packet id %u\n", (unsigned)inverter.getPacketID(), (unsigned)packet_id);
+        return false;
+    }
 
     if (recvfrom.sa_family == AF_INET) {
         const struct sockaddr_in *const addr = (const struct sockaddr_in* const)&recvfrom;
-        if (addr->sin_port != htons(9522)) return false;
-        if (addr->sin_addr.s_addr != localhost.toInAddress(peer.peer_ip_address).s_addr) return false;
+        if (addr->sin_port != htons(9522)) {
+            printf("ipv4 port %u is not 9522\n", (unsigned)ntohs(addr->sin_port));
+            return false;
+        }
+        if (addr->sin_addr.s_addr != localhost.toInAddress(peer.peer_ip_address).s_addr) {
+            printf("ipv4 address %s is not peer ip address %s\n", LocalHost::toString(addr->sin_addr).c_str(), peer.peer_ip_address.c_str());
+            return false;
+        }
     }
     else if (recvfrom.sa_family == AF_INET6) {
         const struct sockaddr_in6* const addr = (const struct sockaddr_in6* const)&recvfrom;
-        if (addr->sin6_port != htons(9522)) return false;
+        if (addr->sin6_port != htons(9522)) {
+            printf("ipv6 port %u is not 9522\n", (unsigned)ntohs(addr->sin6_port));
+            return false;
+        }
         struct in6_addr temp = localhost.toIn6Address(peer.peer_ip_address);
-        if (memcmp(&addr->sin6_addr, &temp, sizeof(temp)) != 0) return false;
+        if (memcmp(&addr->sin6_addr, &temp, sizeof(temp)) != 0) {
+            printf("ipv4 address %s is not peer ip address %s\n", LocalHost::toString(addr->sin6_addr).c_str(), peer.peer_ip_address.c_str());
+            return false;
+        }
     }
 
     return true;
