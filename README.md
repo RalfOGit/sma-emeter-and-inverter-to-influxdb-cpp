@@ -39,4 +39,4 @@ It comes with a simple makefile supporting the following commands:
 - make debug
 - make release
 
-![InfluxDB Grafana View #1](tree/main/screenshot#1.png?raw=true)
+![InfluxDB Grafana View #1](https://github.com/RalfOGit/sma-emeter-and-inverter-to-influxdb-cpp/blob/main/screenshot%231.png?raw=true)
