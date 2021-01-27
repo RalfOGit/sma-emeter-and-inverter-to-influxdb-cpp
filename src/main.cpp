@@ -10,6 +10,7 @@
 #endif
 
 #include <LocalHost.hpp>
+#include <Measurement.hpp>
 #include <SpeedwireSocketFactory.hpp>
 #include <SpeedwireSocketSimple.hpp>
 #include <SpeedwireByteEncoding.hpp>
@@ -17,9 +18,12 @@
 #include <SpeedwireEmeterProtocol.hpp>
 #include <SpeedwireCommand.hpp>
 #include <SpeedwireDiscovery.hpp>
-#include <Measurement.hpp>
 #include <ObisFilter.hpp>
 #include <DataProcessor.hpp>
+
+
+static int poll_emeters(const std::vector<SpeedwireSocket>& sockets, struct pollfd* const fds, const int poll_emeter_timeout_in_ms, ObisFilter& filter);
+static int query_inverter(const SpeedwireInfo& device, SpeedwireCommand& command, SpeedwireDataMap& query_map, DataProcessor& processor, bool& needs_login, bool& night_mode);
 
 
 int main(int argc, char **argv) {
@@ -29,180 +33,99 @@ int main(int argc, char **argv) {
     SpeedwireDiscovery discoverer(localhost);
     discoverer.discoverDevices();
 
-    // login to all inverter devices
-    SpeedwireCommand command(localhost, discoverer.getDevices());
-    for (auto& device : discoverer.getDevices()) {
-        if (device.deviceType == "Inverter") {
-            command.logoff(device);
-        }
-    }
-    for (auto& device : discoverer.getDevices()) {
-        if (device.deviceType == "Inverter") {
-            std::vector<SpeedwireData> data;
-            command.login(device, true, "9999");
-        }
-    }
-
-    // define measurement types
-    MeasurementType positive_power (Direction::POSITIVE,     Type::ACTIVE, Quantity::POWER,        "W",        10);
-    MeasurementType positive_energy(Direction::POSITIVE,     Type::ACTIVE, Quantity::ENERGY,       "kWh", 3600000);
-    MeasurementType negative_power (Direction::NEGATIVE,     Type::ACTIVE, Quantity::POWER,        "W",        10);
-    MeasurementType negative_energy(Direction::NEGATIVE,     Type::ACTIVE, Quantity::ENERGY,       "kWh", 3600000);
-    MeasurementType signed_power   (Direction::SIGNED,       Type::ACTIVE, Quantity::POWER,        "W",        10);
-    MeasurementType power_factor   (Direction::POSITIVE,     Type::ACTIVE, Quantity::POWER_FACTOR, "phi",    1000);
-    MeasurementType voltage        (Direction::NO_DIRECTION, Type::ACTIVE, Quantity::VOLTAGE,      "V",      1000);
-    MeasurementType current        (Direction::POSITIVE,     Type::ACTIVE, Quantity::CURRENT,      "A",      1000);
-    MeasurementType status         (Direction::NO_DIRECTION, Type::ACTIVE, Quantity::STATUS,       "-",         1);
-
     // define measurement filters for sma emeter packet filtering
     ObisFilter filter;
-    filter.addFilter(ObisFilterData(0,  1, 4, 0, positive_power, Line::TOTAL));
-    filter.addFilter(ObisFilterData(0, 21, 4, 0, positive_power, Line::L1));
-    filter.addFilter(ObisFilterData(0, 41, 4, 0, positive_power, Line::L2));
-    filter.addFilter(ObisFilterData(0, 61, 4, 0, positive_power, Line::L3));
-    //filter.addFilter(ObisFilterData(0,  1, 8, 0, positive_energy, Line::TOTAL));
-    //filter.addFilter(ObisFilterData(0, 21, 8, 0, positive_energy, Line::L1));
-    //filter.addFilter(ObisFilterData(0, 41, 8, 0, positive_energy, Line::L2));
-    //filter.addFilter(ObisFilterData(0, 61, 8, 0, positive_energy, Line::L3));
-    filter.addFilter(ObisFilterData(0,  2, 4, 0, negative_power, Line::TOTAL));
-    filter.addFilter(ObisFilterData(0, 22, 4, 0, negative_power, Line::L1));
-    filter.addFilter(ObisFilterData(0, 42, 4, 0, negative_power, Line::L2));  
-    filter.addFilter(ObisFilterData(0, 62, 4, 0, negative_power, Line::L3));  
-    //filter.addFilter(ObisFilterData(0,  2, 8, 0, negative_energy, Line::TOTAL));
-    //filter.addFilter(ObisFilterData(0, 22, 8, 0, negative_energy, Line::L1));
-    //filter.addFilter(ObisFilterData(0, 42, 8, 0, negative_energy, Line::L2)); 
-    //filter.addFilter(ObisFilterData(0, 62, 8, 0, negative_energy, Line::L3)); 
-    //filter.addFilter(ObisFilterData(0, 13, 4, 0, power_factor, Line::TOTAL));
-    //filter.addFilter(ObisFilterData(0, 33, 4, 0, power_factor, Line::L1));
-    //filter.addFilter(ObisFilterData(0, 53, 4, 0, power_factor, Line::L2));
-    //filter.addFilter(ObisFilterData(0, 73, 4, 0, power_factor, Line::L3));
-    //filter.addFilter(ObisFilterData(0, 31, 4, 0, current, Line::L1));
-    //filter.addFilter(ObisFilterData(0, 51, 4, 0, current, Line::L2));
-    //filter.addFilter(ObisFilterData(0, 71, 4, 0, current, Line::L3));
-    //filter.addFilter(ObisFilterData(0, 32, 4, 0, voltage, Line::L1));
-    //filter.addFilter(ObisFilterData(0, 52, 4, 0, voltage, Line::L2));
-    //filter.addFilter(ObisFilterData(0, 72, 4, 0, voltage, Line::L3));
-    filter.addFilter(ObisFilterData(0, 16, 7, 0, signed_power, Line::TOTAL));   // calculated value that is not provided by emeter
+    filter.addFilter(ObisData::PositiveActivePowerTotal);
+    filter.addFilter(ObisData::PositiveActivePowerL1);
+    filter.addFilter(ObisData::PositiveActivePowerL2);
+    filter.addFilter(ObisData::PositiveActivePowerL3);
+    //filter.addFilter(ObisData::PositiveActiveEnergyTotal);
+    //filter.addFilter(ObisData::PositiveActiveEnergyL1);
+    //filter.addFilter(ObisData::PositiveActiveEnergyL2);
+    //filter.addFilter(ObisData::PositiveActiveEnergyL3);
+    filter.addFilter(ObisData::NegativeActivePowerTotal);
+    filter.addFilter(ObisData::NegativeActivePowerL1);
+    filter.addFilter(ObisData::NegativeActivePowerL2);
+    filter.addFilter(ObisData::NegativeActivePowerL3);
+    //filter.addFilter(ObisData::NegativeActiveEnergyTotal);
+    //filter.addFilter(ObisData::NegativeActiveEnergyL1);
+    //filter.addFilter(ObisData::NegativeActiveEnergyL2); 
+    //filter.addFilter(ObisData::NegativeActiveEnergyL3); 
+    //filter.addFilter(ObisData::PowerFactorTotal);
+    //filter.addFilter(ObisData::PowerFactorL1);
+    //filter.addFilter(ObisData::PowerFactorL2);
+    //filter.addFilter(ObisData::PowerFactorL3);
+    //filter.addFilter(ObisData::CurrentL1);
+    //filter.addFilter(ObisData::CurrentL2);
+    //filter.addFilter(ObisData::CurrentL3);
+    //filter.addFilter(ObisData::VoltageL1);
+    //filter.addFilter(ObisData::VoltageL2);
+    //filter.addFilter(ObisData::VoltageL3);
+    filter.addFilter(ObisData::SignedActivePowerTotal);   // calculated value that is not provided by emeter
 
     // define measurement elements for sma inverter queries
-    MeasurementType inverter_power     (Direction::NO_DIRECTION, Type::NO_TYPE, Quantity::POWER,      "W", 1);
-    MeasurementType inverter_voltage   (Direction::NO_DIRECTION, Type::NO_TYPE, Quantity::VOLTAGE,    "V", 100);
-    MeasurementType inverter_current   (Direction::NO_DIRECTION, Type::NO_TYPE, Quantity::CURRENT,    "A", 1000);
-    MeasurementType inverter_status    (Direction::NO_DIRECTION, Type::NO_TYPE, Quantity::STATUS,     "",  1);
-    MeasurementType inverter_relay     (Direction::NO_DIRECTION, Type::NO_TYPE, Quantity::STATUS,     "",  1);
-    MeasurementType inverter_efficiency(Direction::NO_DIRECTION, Type::NO_TYPE, Quantity::EFFICIENCY, "%", 1);
-    MeasurementType inverter_loss      (Direction::NO_DIRECTION, Type::NO_TYPE, Quantity::POWER,      "W", 1);
-
-    std::map<uint32_t, SpeedwireFilterData> query_map;
-    query_map[0x00251E01] = SpeedwireFilterData(COMMAND_DC_QUERY, 0x00251E00, 0x01, 0x40, 0, NULL, 0, inverter_power,   Line::MPP1);
-    query_map[0x00251E02] = SpeedwireFilterData(COMMAND_DC_QUERY, 0x00251E00, 0x02, 0x40, 0, NULL, 0, inverter_power,   Line::MPP2);
-    query_map[0x00451F01] = SpeedwireFilterData(COMMAND_DC_QUERY, 0x00451F00, 0x01, 0x40, 0, NULL, 0, inverter_voltage, Line::MPP1);
-    query_map[0x00451F02] = SpeedwireFilterData(COMMAND_DC_QUERY, 0x00451F00, 0x02, 0x40, 0, NULL, 0, inverter_voltage, Line::MPP2);
-    query_map[0x00452101] = SpeedwireFilterData(COMMAND_DC_QUERY, 0x00452100, 0x01, 0x40, 0, NULL, 0, inverter_current, Line::MPP1);
-    query_map[0x00452102] = SpeedwireFilterData(COMMAND_DC_QUERY, 0x00452100, 0x02, 0x40, 0, NULL, 0, inverter_current, Line::MPP2);
-    query_map[0x00464001] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00464000, 0x01, 0x40, 0, NULL, 0, inverter_power,   Line::L1);
-    query_map[0x00464101] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00464100, 0x01, 0x40, 0, NULL, 0, inverter_power,   Line::L2);
-    query_map[0x00464201] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00464200, 0x01, 0x40, 0, NULL, 0, inverter_power,   Line::L3);
-    //query_map[0x00464801] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00464800, 0x01, 0x00, 0, NULL, 0, inverter_voltage, Line::L1);    // L1 -> N
-    //query_map[0x00464901] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00464900, 0x01, 0x00, 0, NULL, 0, inverter_voltage, Line::L2);    // L2 -> N
-    //query_map[0x00464a01] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00464a00, 0x01, 0x00, 0, NULL, 0, inverter_voltage, Line::L3);    // L3 -> N
-    //query_map[0x00464b01] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00464b00, 0x01, 0x00, 0, NULL, 0, inverter_voltage, Line::L1);    // L1 -> L2
-    //query_map[0x00464c01] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00464c00, 0x01, 0x00, 0, NULL, 0, inverter_voltage, Line::L2);    // L2 -> L3
-    //query_map[0x00464d01] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00464d00, 0x01, 0x00, 0, NULL, 0, inverter_voltage, Line::L3);    // L3 -> L1
-    //query_map[0x00465301] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00465300, 0x01, 0x40, 0, NULL, 0, inverter_current, Line::L1);
-    //query_map[0x00465401] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00465400, 0x01, 0x40, 0, NULL, 0, inverter_current, Line::L2);
-    //query_map[0x00465501] = SpeedwireFilterData(COMMAND_AC_QUERY, 0x00465500, 0x01, 0x40, 0, NULL, 0, inverter_current, Line::L3);
-    query_map[0x00214801] = SpeedwireFilterData(COMMAND_STATUS_QUERY, 0x00214800, 0x01, 0x08, 0, NULL, 0, inverter_status, Line::DEVICE_OK);
-    query_map[0x00416401] = SpeedwireFilterData(COMMAND_STATUS_QUERY, 0x00416400, 0x01, 0x08, 0, NULL, 0, inverter_relay,  Line::RELAY_ON);
+    SpeedwireDataMap query_map;
+    query_map.add(SpeedwireData::InverterPowerMPP1);
+    query_map.add(SpeedwireData::InverterPowerMPP2);
+    query_map.add(SpeedwireData::InverterVoltageMPP1);
+    query_map.add(SpeedwireData::InverterVoltageMPP2);
+    query_map.add(SpeedwireData::InverterCurrentMPP1);
+    query_map.add(SpeedwireData::InverterCurrentMPP2);
+    query_map.add(SpeedwireData::InverterPowerL1);
+    query_map.add(SpeedwireData::InverterPowerL2);
+    query_map.add(SpeedwireData::InverterPowerL3);
+    //query_map.add(SpeedwireData::InverterVoltageL1);
+    //query_map.add(SpeedwireData::InverterVoltageL2);
+    //query_map.add(SpeedwireData::InverterVoltageL3);
+    //query_map.add(SpeedwireData::InverterVoltageL1toL2);
+    //query_map.add(SpeedwireData::InverterVoltageL2toL3);
+    //query_map.add(SpeedwireData::InverterVoltageL3toL1);
+    //query_map.add(SpeedwireData::InverterCurrentL1);
+    //query_map.add(SpeedwireData::InverterCurrentL2);
+    //query_map.add(SpeedwireData::InverterCurrentL3);
+    query_map.add(SpeedwireData::InverterStatus);
+    query_map.add(SpeedwireData::InverterRelay);
 
     // configure processing chain
     DataProcessor processor(60000);
     filter.addConsumer(&processor);
+    SpeedwireCommand command(localhost, discoverer.getDevices());
 
     // open socket(s) to receive sma emeter packets from any local interface
-    std::vector<SpeedwireSocket> sockets = SpeedwireSocketFactory::getInstance(localhost)->getRecvSockets(SpeedwireSocketFactory::MULTICAST, localhost.getLocalIPv4Addresses());
-    struct pollfd* fds = (struct pollfd *) malloc(sizeof(struct pollfd) * sockets.size());
+    const std::vector<SpeedwireSocket> sockets = SpeedwireSocketFactory::getInstance(localhost)->getRecvSockets(SpeedwireSocketFactory::MULTICAST, localhost.getLocalIPv4Addresses());
 
-    const unsigned long query_inverter_interval_in_ms = 30000;
-    const unsigned long poll_timeout_in_ms = 2000;
-    unsigned char multicast_packet[1024];
+    // allocate pollfd struct(s) for the socket(s)
+    struct pollfd *const fds = (struct pollfd *const) malloc(sizeof(struct pollfd) * sockets.size());
+
 
     //
     // main loop
     //
+    bool needs_login = true;
+    bool night_mode  = false;
     uint64_t start_time = localhost.getTickCountInMs();
-    while(1) {
 
-        // prepare the pollfd structure
-        int j = 0;
-        for (auto& socket : sockets) {
-            fds[j].fd = socket.getSocketFd();
-            fds[j].events = POLLIN;
-            fds[j++].revents = 0;
-        }
+    while(true) {
 
-        // wait for a packet on the configured socket
-        if (poll(fds, j/*sizeof(sockets)*/, poll_timeout_in_ms) < 0) {
-            perror("poll failure");
-            return -1;
-        }
+        const unsigned long query_inverter_interval_in_ms = (night_mode ? 10*30000 : 30000);
+        const unsigned long poll_emeter_timeout_in_ms     = (night_mode ?    10000 :  2000);
+        night_mode = false;  // re-enabled later when handling inverter responses
 
-        // determine if the socket received a packet
-        j = 0;
-        for (auto& socket : sockets) {
-
-            if ((fds[j++].revents & POLLIN) != 0) {
-                int nbytes = -1;
-
-                // read packet data
-                if (socket.isIpv4()) {
-                    struct sockaddr_in src;
-                    nbytes = socket.recvfrom(multicast_packet, sizeof(multicast_packet), src);
-                }
-                else if (socket.isIpv6()) {
-                    struct sockaddr_in6 src;
-                    nbytes = socket.recvfrom(multicast_packet, sizeof(multicast_packet), src);
-                }
-                // check if it is an sma emeter packet
-                SpeedwireHeader protocol(multicast_packet, nbytes);
-                bool valid = protocol.checkHeader();
-                if (valid) {
-                    int group = protocol.getGroup();
-                    int length = protocol.getLength();
-                    int protocolID = protocol.getProtocolID();
-                    int offset = protocol.getPayloadOffset();
-
-                    if (protocolID == SpeedwireHeader::sma_emeter_protocol_id) {
-                        printf("RECEIVED EMETER PACKET  time 0x%016llx\n", localhost.getTickCountInMs());
-                        SpeedwireEmeterProtocol emeter(multicast_packet + offset, nbytes - offset);
-                        uint16_t susyid = emeter.getSusyID();
-                        uint32_t serial = emeter.getSerialNumber();
-                        uint32_t timer = emeter.getTime();
-
-                        // extract obis data from the emeter packet and pass each obis data element to the obis filter
-                        uint8_t obis_signed_power[8] = { 0, 16, 7, 0, 0, 0, 0, 0 };
-                        int32_t signed_power = 0;
-                        void* obis = emeter.getFirstObisElement();
-                        while (obis != NULL) {
-                            //emeter.printObisElement(obis, stderr);
-                            // ugly hack to calculate the signed power value
-                            if (SpeedwireEmeterProtocol::getObisType(obis) == 4) {
-                                switch (SpeedwireEmeterProtocol::getObisIndex(obis)) {
-                                case 1: signed_power += SpeedwireEmeterProtocol::getObisValue4(obis);  break;
-                                case 2: signed_power -= SpeedwireEmeterProtocol::getObisValue4(obis);  break;
-                                }
-                            }
-                            // send the obis value to the obis filter before proceeding with then next obis element
-                            filter.consume(obis, timer);
-                            obis = emeter.getNextObisElement(obis);
-                        }
-                        // send the calculated signed power value to the obis filter
-                        SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power[4], signed_power);
-                        filter.consume(obis_signed_power, timer);
-                        processor.flush();
-                    }
+        // login to all inverter devices
+        if (needs_login == true) {
+            needs_login = false;
+            for (auto& device : discoverer.getDevices()) {
+                if (device.deviceType == "Inverter") {
+                    command.logoff(device);
+                    command.login(device, true, "9999");
                 }
             }
+        }
+
+        // poll sockets for inbound emeter packets
+        int npackets = poll_emeters(sockets, fds, poll_emeter_timeout_in_ms, filter);
+        if (npackets > 0) {
+            processor.flush();
         }
 
         // if the query interval has elapsed for the inverters, start a query
@@ -211,65 +134,159 @@ int main(int argc, char **argv) {
             start_time += query_inverter_interval_in_ms;
 
             for (auto& device : discoverer.getDevices()) {
-                if (device.deviceType != "Inverter") continue;
-                printf("QUERY INVERTER  time 0x%016llx\n", localhost.getTickCountInMs());
-
-                // query information from the inverters and collect query results
-                std::vector<SpeedwireData> reply_data;
-                //command.query(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF, reply_data);     // query software version
-                //command.query(device, Command::COMMAND_DEVICE_QUERY, 0x00821E00, 0x008220FF, reply_data);     // query device type
-                command.query(device, Command::COMMAND_DC_QUERY,     0x00251E00, 0x00251EFF, reply_data);     // query dc power
-                command.query(device, Command::COMMAND_DC_QUERY,     0x00451F00, 0x004521FF, reply_data);     // query dc voltage and current
-                command.query(device, Command::COMMAND_AC_QUERY,     0x00464000, 0x004642FF, reply_data);     // query ac power
-                //command.query(device, Command::COMMAND_AC_QUERY,     0x00464800, 0x004655FF, reply_data);     // query ac voltage and current
-                command.query(device, Command::COMMAND_STATUS_QUERY, 0x00214800, 0x002148FF, reply_data);     // query device status
-                command.query(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF, reply_data);     // query grid relay status
-
-                // interprete query results
-                for (auto& reply : reply_data) {
-                    std::map<uint32_t, SpeedwireFilterData>::iterator it = query_map.find(reply.id | reply.conn);
-                    if (it != query_map.end()) {
-                        it->second.consume(reply);
-                        //it->second.print(stdout);
-                        processor.consume(it->second);
+                if (device.deviceType == "Inverter") {
+                    // query inverter for status and energy production data
+                    printf("QUERY INVERTER  time 0x%016llx\n", localhost.getTickCountInMs());
+                    int nreplies = query_inverter(device, command, query_map, processor, needs_login, night_mode);
+                    if (nreplies > 0) {
+                        processor.flush();
                     }
                 }
-
-                // derive values for inverter efficiency, total power and power loss; these are not provided in the query data
-                SpeedwireFilterData dc_power(0, 0, 0, 0, 0, NULL, 0, inverter_power, Line::MPP_TOTAL);    dc_power.measurementValue->value = 0.0;
-                SpeedwireFilterData ac_power(0, 0, 0, 0, 0, NULL, 0, inverter_power, Line::TOTAL);        ac_power.measurementValue->value = 0.0;
-                SpeedwireFilterData loss(0, 0, 0, 0, 0, NULL, 0, inverter_loss, Line::LOSS_TOTAL);
-                SpeedwireFilterData efficiency(0, 0, 0, 0, 0, NULL, 0, inverter_efficiency, Line::NO_LINE);
-                for (int conn = 0x01; conn <= 0x02; ++conn) {
-                    std::map<uint32_t, SpeedwireFilterData>::iterator it = query_map.find(0x00251E00 | conn);  // dc power mpp1 + mpp2
-                    if (it != query_map.end()) {
-                        dc_power.measurementValue->value += it->second.measurementValue->value;
-                        dc_power.measurementValue->timer = it->second.measurementValue->timer;
-                        dc_power.time = it->second.time;
-                    }
-                }
-                for (int line = 0x001; line <= 0x201; line += 0x100) {
-                    std::map<uint32_t, SpeedwireFilterData>::iterator it = query_map.find(0x00464000 | line);  // ac power l1 + l2 + l3
-                    if (it != query_map.end()) {
-                        ac_power.measurementValue->value += it->second.measurementValue->value;
-                        ac_power.measurementValue->timer = it->second.measurementValue->timer;
-                        ac_power.time = it->second.time;
-                    }
-                }
-                loss.measurementValue->value = dc_power.measurementValue->value - ac_power.measurementValue->value;
-                loss.measurementValue->timer = dc_power.measurementValue->timer;
-                loss.time = dc_power.time;
-                efficiency.measurementValue->value = (dc_power.measurementValue->value > 0 ? (ac_power.measurementValue->value / dc_power.measurementValue->value) * 100.0 : 0.0);
-                efficiency.measurementValue->timer = dc_power.measurementValue->timer;
-                efficiency.time = dc_power.time;
-                processor.consume(dc_power);
-                processor.consume(ac_power);
-                processor.consume(loss);
-                processor.consume(efficiency);
-                processor.flush();
             }
         }
     }
+    free(fds);
 
     return 0;
+}
+
+
+/**
+ +  poll all configured sockets for emeter udp packets and pass emeter data to the obis filter 
+ */
+static int poll_emeters(const std::vector<SpeedwireSocket> &sockets, struct pollfd* const fds, const int poll_emeter_timeout_in_ms, ObisFilter &filter) {
+    int npackets = 0;
+    unsigned char multicast_packet[1024];
+
+    // prepare the pollfd structure
+    for (int j = 0; j < sockets.size(); ++j) {
+        fds[j].fd      = sockets[j].getSocketFd();
+        fds[j].events  = POLLIN;
+        fds[j].revents = 0;
+    }
+
+    // wait for a packet on the configured socket
+    if (poll(fds, sockets.size(), poll_emeter_timeout_in_ms) < 0) {
+        perror("poll failure");
+        return -1;
+    }
+
+    // determine if the socket received a packet
+    for (int j = 0; j < sockets.size(); ++j) {
+        auto& socket = sockets[j];
+
+        if ((fds[j].revents & POLLIN) != 0) {
+            int nbytes = -1;
+
+            // read packet data
+            if (socket.isIpv4()) {
+                struct sockaddr_in src;
+                nbytes = socket.recvfrom(multicast_packet, sizeof(multicast_packet), src);
+            }
+            else if (socket.isIpv6()) {
+                struct sockaddr_in6 src;
+                nbytes = socket.recvfrom(multicast_packet, sizeof(multicast_packet), src);
+            }
+            // check if it is an sma emeter packet
+            SpeedwireHeader protocol(multicast_packet, nbytes);
+            bool valid = protocol.checkHeader();
+            if (valid) {
+                uint32_t group = protocol.getGroup();
+                uint16_t length = protocol.getLength();
+                uint16_t protocolID = protocol.getProtocolID();
+                int      offset = protocol.getPayloadOffset();
+
+                if (protocolID == SpeedwireHeader::sma_emeter_protocol_id) {
+                    printf("RECEIVED EMETER PACKET  time 0x%016llx\n", LocalHost::getTickCountInMs());
+                    SpeedwireEmeterProtocol emeter(multicast_packet + offset, nbytes - offset);
+                    uint16_t susyid = emeter.getSusyID();
+                    uint32_t serial = emeter.getSerialNumber();
+                    uint32_t timer = emeter.getTime();
+
+                    // extract obis data from the emeter packet and pass each obis data element to the obis filter
+                    uint8_t obis_signed_power[8] = { 0, 16, 7, 0, 0, 0, 0, 0 };
+                    int32_t signed_power = 0;
+                    void* obis = emeter.getFirstObisElement();
+                    while (obis != NULL) {
+                        //emeter.printObisElement(obis, stderr);
+                        // ugly hack to calculate the signed power value
+                        if (SpeedwireEmeterProtocol::getObisType(obis) == 4) {
+                            switch (SpeedwireEmeterProtocol::getObisIndex(obis)) {
+                            case 1: signed_power += SpeedwireEmeterProtocol::getObisValue4(obis);  break;
+                            case 2: signed_power -= SpeedwireEmeterProtocol::getObisValue4(obis);  break;
+                            }
+                        }
+                        // send the obis value to the obis filter before proceeding with then next obis element
+                        filter.consume(obis, timer);
+                        obis = emeter.getNextObisElement(obis);
+                    }
+                    // send the calculated signed power value to the obis filter
+                    SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power[4], signed_power);
+                    filter.consume(obis_signed_power, timer);
+                    ++npackets;
+                }
+            }
+        }
+    }
+    return npackets;
+}
+
+
+/**
+ * query inverters for status and energy production data
+ */
+static int query_inverter(const SpeedwireInfo &device, SpeedwireCommand &command, SpeedwireDataMap &query_map, DataProcessor &processor, bool &needs_login, bool &night_mode) {
+
+    // query information from the inverters and collect query results
+    std::vector<SpeedwireRawData> reply_data;
+    // int32_t return_code_1 = command.query(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF, reply_data);    // query software version
+    // int32_t return_code_2 = command.query(device, Command::COMMAND_DEVICE_QUERY, 0x00821E00, 0x008220FF, reply_data);    // query device type
+    int32_t return_code_3 = command.query(device, Command::COMMAND_DC_QUERY, 0x00251E00, 0x00251EFF, reply_data);           // query dc power
+    int32_t return_code_4 = command.query(device, Command::COMMAND_DC_QUERY, 0x00451F00, 0x004521FF, reply_data);           // query dc voltage and current
+    int32_t return_code_5 = command.query(device, Command::COMMAND_AC_QUERY, 0x00464000, 0x004642FF, reply_data);           // query ac power
+    //int32_t return_code_6 = command.query(device, Command::COMMAND_AC_QUERY,     0x00464800, 0x004655FF, reply_data);     // query ac voltage and current
+    int32_t return_code_7 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00214800, 0x002148FF, reply_data);       // query device status
+    int32_t return_code_8 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF, reply_data);       // query grid relay status
+    if ((return_code_8 & 0xffff) == 0x0017) {
+        needs_login = true;
+    }
+
+    // if query results have been received
+    if (reply_data.size() > 0) {
+
+        // interprete query results
+        for (auto& reply : reply_data) {
+            auto iterator = query_map.find(reply.toKey());
+            if (iterator != query_map.end()) {
+                iterator->second.consume(reply);
+                //it->second.print(stdout);
+                processor.consume(iterator->second);
+            }
+        }
+
+        // derive values for inverter total dc and ac power, efficiency and power loss; these are not explicitly provided in the query data
+        SpeedwireData dc_power  (SpeedwireData::InverterPowerDCTotal);    dc_power.measurementValue->value = 0.0;
+        SpeedwireData ac_power  (SpeedwireData::InverterPowerACTotal);    ac_power.measurementValue->value = 0.0;
+        SpeedwireData loss      (SpeedwireData::InverterPowerLoss);
+        SpeedwireData efficiency(SpeedwireData::InverterPowerEfficiency);
+        query_map.addValueToTarget(SpeedwireData::InverterPowerMPP1.toKey(), dc_power);
+        query_map.addValueToTarget(SpeedwireData::InverterPowerMPP2.toKey(), dc_power);
+        query_map.addValueToTarget(SpeedwireData::InverterPowerL1.toKey(), ac_power);
+        query_map.addValueToTarget(SpeedwireData::InverterPowerL2.toKey(), ac_power);
+        query_map.addValueToTarget(SpeedwireData::InverterPowerL3.toKey(), ac_power);
+        loss.measurementValue->value = dc_power.measurementValue->value - ac_power.measurementValue->value;
+        loss.measurementValue->timer = dc_power.measurementValue->timer;
+        loss.time = dc_power.time;
+        efficiency.measurementValue->value = (dc_power.measurementValue->value > 0 ? (ac_power.measurementValue->value / dc_power.measurementValue->value) * 100.0 : 0.0);
+        efficiency.measurementValue->timer =  dc_power.measurementValue->timer;
+        efficiency.time = dc_power.time;
+        if (dc_power.time   != 0) processor.consume(dc_power);
+        if (ac_power.time   != 0) processor.consume(ac_power);
+        if (loss.time       != 0) processor.consume(loss);
+        if (efficiency.time != 0) processor.consume(efficiency);
+
+        // enable / disable night mode (it would be better to use dc_voltage, but it is not easily available here)
+        night_mode = (dc_power.time != 0 && dc_power.measurementValue->value == 0);
+    }
+    return reply_data.size();
 }

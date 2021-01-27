@@ -24,6 +24,7 @@ std::string MeasurementType::getFullName(const Line line) const {
     return name;
 }
 
+
 /*******************************/
 
 MeasurementValue::MeasurementValue(void) {

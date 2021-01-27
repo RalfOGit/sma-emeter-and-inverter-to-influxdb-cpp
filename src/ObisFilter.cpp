@@ -11,19 +11,19 @@ ObisFilter::~ObisFilter(void) {
     consumerTable.clear();
 }
 
-void ObisFilter::addFilter(const ObisFilterData &entry) {
+void ObisFilter::addFilter(const ObisData &entry) {
     filterTable.push_back(entry);
 }
 
-void ObisFilter::removeFilter(const ObisFilterData &entry) {
-    for (std::vector<ObisFilterData>::iterator it = filterTable.begin(); it != filterTable.end(); it++) {
+void ObisFilter::removeFilter(const ObisData &entry) {
+    for (std::vector<ObisData>::iterator it = filterTable.begin(); it != filterTable.end(); it++) {
         if (it->equals(entry)) {
             it = filterTable.erase(it);
         }
     }
 }
 
-const std::vector<ObisFilterData> &ObisFilter::getFilter(void) const {
+const std::vector<ObisData> &ObisFilter::getFilter(void) const {
     return filterTable;
 }
 
@@ -40,12 +40,12 @@ void ObisFilter::removeConsumer(ObisConsumer *obisConsumer) {
 }
 
 bool ObisFilter::consume(const void *const obis, const uint32_t timer) const {
-    ObisData element(SpeedwireEmeterProtocol::getObisChannel(obis),
+    ObisType element(SpeedwireEmeterProtocol::getObisChannel(obis),
                      SpeedwireEmeterProtocol::getObisIndex(obis),
                      SpeedwireEmeterProtocol::getObisType(obis),
                      SpeedwireEmeterProtocol::getObisTariff(obis));
 
-    const ObisFilterData *const filteredElement = filter(element);
+    const ObisData *const filteredElement = filter(element);
     if (filteredElement != NULL && filteredElement->measurementValue != NULL) {
         MeasurementValue *mvalue = filteredElement->measurementValue;
         if (filteredElement->type == 4) {
@@ -71,8 +71,8 @@ bool ObisFilter::consume(const void *const obis, const uint32_t timer) const {
     return false;
 }
 
-const ObisFilterData *const ObisFilter::filter(const ObisData &element) const {
-    for (std::vector<ObisFilterData>::const_iterator it = filterTable.begin(); it != filterTable.end(); it++) {
+const ObisData *const ObisFilter::filter(const ObisType &element) const {
+    for (std::vector<ObisData>::const_iterator it = filterTable.begin(); it != filterTable.end(); it++) {
         if (it->equals(element)) {
             return &(*it);
         }
@@ -80,7 +80,7 @@ const ObisFilterData *const ObisFilter::filter(const ObisData &element) const {
     return NULL;
 }
 
-void ObisFilter::produce(const ObisFilterData &element) const {
+void ObisFilter::produce(const ObisData &element) const {
     for (std::vector<ObisConsumer*>::const_iterator it = consumerTable.begin(); it != consumerTable.end(); it++) {
         (*it)->consume(element);
     }

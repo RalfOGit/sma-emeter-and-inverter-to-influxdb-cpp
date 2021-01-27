@@ -1,12 +1,16 @@
 #include <memory.h>
 #include <SpeedwireByteEncoding.hpp>
 #include <SpeedwireData.hpp>
+#include <SpeedwireCommand.hpp>
 
 
+/*******************************
+ *  Class holding raw data from the speedwire inverter reply packet
+ ********************************/
 /**
  *  Constructor
  */
-SpeedwireData::SpeedwireData(const uint32_t _command, const uint32_t _id, const uint8_t _conn, const uint8_t _type, const time_t _time, const void *const _data, const size_t _data_size) :
+SpeedwireRawData::SpeedwireRawData(const uint32_t _command, const uint32_t _id, const uint8_t _conn, const uint8_t _type, const time_t _time, const void *const _data, const size_t _data_size) :
     command(_command),
     id(_id),
     conn(_conn),
@@ -23,7 +27,7 @@ SpeedwireData::SpeedwireData(const uint32_t _command, const uint32_t _id, const 
 /**
  *  Compare two instances of SpeedwireData with each other
  */
-bool SpeedwireData::equals(const SpeedwireData& other) const {
+bool SpeedwireRawData::equals(const SpeedwireRawData& other) const {
     return (command == other.command && id == other.id && conn == other.conn && type == other.type && time == other.time && data_size == other.data_size && memcmp(data, other.data, data_size) == 0);
 }
 
@@ -31,16 +35,15 @@ bool SpeedwireData::equals(const SpeedwireData& other) const {
 /**
  *  Compare two instance signatures of SpeedwireData with each other
  */
-bool SpeedwireData::isSameSignature(const SpeedwireData& other) const {
+bool SpeedwireRawData::isSameSignature(const SpeedwireRawData& other) const {
     return (command == other.command && id == other.id && conn == other.conn && type == other.type);
 }
-
 
 
 /**
  *  Convert SpeedwireData into a std::string represenation
  */
-std::string SpeedwireData::toString(void) const {
+std::string SpeedwireRawData::toString(void) const {
     char buff[256];
     snprintf(buff, sizeof(buff), "id 0x%08lx conn 0x%02x type 0x%02x  time 0x%08lx data 0x", (unsigned)id, (unsigned)conn, (unsigned)type, (uint32_t)time);
     std::string result(buff);
@@ -52,24 +55,27 @@ std::string SpeedwireData::toString(void) const {
     return result;
 }
 
-void SpeedwireData::print(uint32_t value, FILE* file) const {
+void SpeedwireRawData::print(uint32_t value, FILE* file) const {
     fprintf(file, "%s 0x%08lx %lu\n", toString().c_str(), value, value);
 }
 
-void SpeedwireData::print(uint64_t value, FILE* file) const {
+void SpeedwireRawData::print(uint64_t value, FILE* file) const {
     fprintf(file, "%s 0x%016llx %llu\n", toString().c_str(), value, value);
 }
 
 
-/*******************************/
 
+/*******************************
+ *  Class holding data from the speedwire inverter reply packet, enriched by measurement type information
+ *  and the interpreted measurement value
+ ********************************/
 
 /**
  *  Constructor
  */
-SpeedwireFilterData::SpeedwireFilterData(const uint32_t command, const uint32_t id, const uint8_t conn, const uint8_t type, const time_t time, const void *const data, const size_t data_size,
+SpeedwireData::SpeedwireData(const uint32_t command, const uint32_t id, const uint8_t conn, const uint8_t type, const time_t time, const void *const data, const size_t data_size,
                                          const MeasurementType& mType, const Line _line) :
-    SpeedwireData(command, id, conn, type, time, data, data_size),
+    SpeedwireRawData(command, id, conn, type, time, data, data_size),
     measurementType(mType),
     line(_line),
     description(mType.getFullName(_line)) {
@@ -80,8 +86,8 @@ SpeedwireFilterData::SpeedwireFilterData(const uint32_t command, const uint32_t 
 /**
  *  Copy constructor
  */
-SpeedwireFilterData::SpeedwireFilterData(const SpeedwireFilterData& rhs) :
-    SpeedwireFilterData(rhs.command, rhs.id, rhs.conn, rhs.type, rhs.time, &rhs.data, rhs.data_size, rhs.measurementType, rhs.line) {
+SpeedwireData::SpeedwireData(const SpeedwireData& rhs) :
+    SpeedwireData(rhs.command, rhs.id, rhs.conn, rhs.type, rhs.time, &rhs.data, rhs.data_size, rhs.measurementType, rhs.line) {
     line = rhs.line;
     description = rhs.description;
     *measurementValue = *rhs.measurementValue;  // the constructor call above already allocated a new MeasurementValue instance
@@ -91,8 +97,8 @@ SpeedwireFilterData::SpeedwireFilterData(const SpeedwireFilterData& rhs) :
 /**
  *  Default constructor, not very useful, but needed for std::map
  */
-SpeedwireFilterData::SpeedwireFilterData(void) :
-    SpeedwireData(0, 0, 0, 0, 0, NULL, 0),
+SpeedwireData::SpeedwireData(void) :
+    SpeedwireRawData(0, 0, 0, 0, 0, NULL, 0),
     measurementType(Direction::NO_DIRECTION, Type::NO_TYPE, Quantity::NO_QUANTITY, "", 0),
     line(Line::NO_LINE),
     description() {
@@ -103,9 +109,9 @@ SpeedwireFilterData::SpeedwireFilterData(void) :
 /**
  *  Assignment operator
  */
-SpeedwireFilterData& SpeedwireFilterData::operator=(const SpeedwireFilterData& rhs) {
+SpeedwireData& SpeedwireData::operator=(const SpeedwireData& rhs) {
     if (this != &rhs) {
-        this->SpeedwireData::operator=(rhs);
+        this->SpeedwireRawData::operator=(rhs);
         this->measurementType = rhs.measurementType;
         this->line = rhs.line;
         this->description = rhs.description;
@@ -118,7 +124,7 @@ SpeedwireFilterData& SpeedwireFilterData::operator=(const SpeedwireFilterData& r
 /**
  *  Destructor
  */
-SpeedwireFilterData::~SpeedwireFilterData(void) {
+SpeedwireData::~SpeedwireData(void) {
     if (measurementValue != NULL) {
         delete measurementValue;
         measurementValue = NULL;
@@ -129,7 +135,7 @@ SpeedwireFilterData::~SpeedwireFilterData(void) {
 /**
  *  Consume the given inverter data, i.e. interprete register id and convert to physical values
  */
-bool SpeedwireFilterData::consume(const SpeedwireData& data) {
+bool SpeedwireData::consume(const SpeedwireRawData& data) {
     if (!isSameSignature(data)) return false;
     if (data.data == NULL || data.data_size < 20) return false;
 
@@ -191,8 +197,62 @@ bool SpeedwireFilterData::consume(const SpeedwireData& data) {
     return true;
 }
 
-void SpeedwireFilterData::print(FILE* file) const {
+
+/**
+ *  Print instance to file
+ */
+void SpeedwireData::print(FILE* file) const {
     uint32_t timer = (measurementValue != NULL ? measurementValue->timer : 0xfffffffful);
     double   value = (measurementValue != NULL ? measurementValue->value : -999999.9999);
-    fprintf(file, "%-16s  time %lu  %s  => %lf %s\n", description.c_str(), timer, SpeedwireData::toString().c_str(), value, measurementType.unit.c_str());
+    fprintf(file, "%-16s  time %lu  %s  => %lf %s\n", description.c_str(), timer, SpeedwireRawData::toString().c_str(), value, measurementType.unit.c_str());
 }
+
+
+///**
+// *  Add this instance to the given map, where the key is the command plus conn
+// */
+//void SpeedwireFilterData::addToMap(QueryMap& map) const {
+//    map[id + conn] = *this;
+//}
+//
+//
+///**
+// *  Search in the given map for an entry like the given template and add the entires measurement value to this instance
+// */
+//void SpeedwireFilterData::addValueFromMap(QueryMap& map, const SpeedwireFilterData &_template) {
+//    auto iterator = map.find(_template.id | _template.conn);
+//    if (iterator != map.end()) {
+//        measurementValue->value += iterator->second.measurementValue->value;
+//        measurementValue->timer  = iterator->second.measurementValue->timer;
+//        time = iterator->second.time;
+//    }
+//}
+
+
+// pre-defined instances
+const SpeedwireData SpeedwireData::InverterPowerMPP1    (Command::COMMAND_DC_QUERY,     0x00251E00, 0x01, 0x40, 0, NULL, 0, MeasurementType::InverterPower(),   Line::MPP1);
+const SpeedwireData SpeedwireData::InverterPowerMPP2    (Command::COMMAND_DC_QUERY,     0x00251E00, 0x02, 0x40, 0, NULL, 0, MeasurementType::InverterPower(),   Line::MPP2);
+const SpeedwireData SpeedwireData::InverterVoltageMPP1  (Command::COMMAND_DC_QUERY,     0x00451F00, 0x01, 0x40, 0, NULL, 0, MeasurementType::InverterVoltage(), Line::MPP1);
+const SpeedwireData SpeedwireData::InverterVoltageMPP2  (Command::COMMAND_DC_QUERY,     0x00451F00, 0x02, 0x40, 0, NULL, 0, MeasurementType::InverterVoltage(), Line::MPP2);
+const SpeedwireData SpeedwireData::InverterCurrentMPP1  (Command::COMMAND_DC_QUERY,     0x00452100, 0x01, 0x40, 0, NULL, 0, MeasurementType::InverterCurrent(), Line::MPP1);
+const SpeedwireData SpeedwireData::InverterCurrentMPP2  (Command::COMMAND_DC_QUERY,     0x00452100, 0x02, 0x40, 0, NULL, 0, MeasurementType::InverterCurrent(), Line::MPP2);
+const SpeedwireData SpeedwireData::InverterPowerL1      (Command::COMMAND_AC_QUERY,     0x00464000, 0x01, 0x40, 0, NULL, 0, MeasurementType::InverterPower(),   Line::L1);
+const SpeedwireData SpeedwireData::InverterPowerL2      (Command::COMMAND_AC_QUERY,     0x00464100, 0x01, 0x40, 0, NULL, 0, MeasurementType::InverterPower(),   Line::L2);
+const SpeedwireData SpeedwireData::InverterPowerL3      (Command::COMMAND_AC_QUERY,     0x00464200, 0x01, 0x40, 0, NULL, 0, MeasurementType::InverterPower(),   Line::L3);
+const SpeedwireData SpeedwireData::InverterVoltageL1    (Command::COMMAND_AC_QUERY,     0x00464800, 0x01, 0x00, 0, NULL, 0, MeasurementType::InverterVoltage(), Line::L1);    // L1 -> N
+const SpeedwireData SpeedwireData::InverterVoltageL2    (Command::COMMAND_AC_QUERY,     0x00464900, 0x01, 0x00, 0, NULL, 0, MeasurementType::InverterVoltage(), Line::L2);    // L2 -> N
+const SpeedwireData SpeedwireData::InverterVoltageL3    (Command::COMMAND_AC_QUERY,     0x00464a00, 0x01, 0x00, 0, NULL, 0, MeasurementType::InverterVoltage(), Line::L3);    // L3 -> N
+const SpeedwireData SpeedwireData::InverterVoltageL1toL2(Command::COMMAND_AC_QUERY,     0x00464b00, 0x01, 0x00, 0, NULL, 0, MeasurementType::InverterVoltage(), Line::L1);    // L1 -> L2
+const SpeedwireData SpeedwireData::InverterVoltageL2toL3(Command::COMMAND_AC_QUERY,     0x00464c00, 0x01, 0x00, 0, NULL, 0, MeasurementType::InverterVoltage(), Line::L2);    // L2 -> L3
+const SpeedwireData SpeedwireData::InverterVoltageL3toL1(Command::COMMAND_AC_QUERY,     0x00464d00, 0x01, 0x00, 0, NULL, 0, MeasurementType::InverterVoltage(), Line::L3);    // L3 -> L1
+const SpeedwireData SpeedwireData::InverterCurrentL1    (Command::COMMAND_AC_QUERY,     0x00465300, 0x01, 0x40, 0, NULL, 0, MeasurementType::InverterCurrent(), Line::L1);
+const SpeedwireData SpeedwireData::InverterCurrentL2    (Command::COMMAND_AC_QUERY,     0x00465400, 0x01, 0x40, 0, NULL, 0, MeasurementType::InverterCurrent(), Line::L2);
+const SpeedwireData SpeedwireData::InverterCurrentL3    (Command::COMMAND_AC_QUERY,     0x00465500, 0x01, 0x40, 0, NULL, 0, MeasurementType::InverterCurrent(), Line::L3);
+const SpeedwireData SpeedwireData::InverterStatus       (Command::COMMAND_STATUS_QUERY, 0x00214800, 0x01, 0x08, 0, NULL, 0, MeasurementType::InverterStatus(),  Line::DEVICE_OK);
+const SpeedwireData SpeedwireData::InverterRelay        (Command::COMMAND_STATUS_QUERY, 0x00416400, 0x01, 0x08, 0, NULL, 0, MeasurementType::InverterRelay(),   Line::RELAY_ON);
+
+// pre-defined instances of derived measurement values
+const SpeedwireData SpeedwireData::InverterPowerDCTotal   (0, 0, 0, 0, 0, NULL, 0, MeasurementType::InverterPower(),      Line::MPP_TOTAL);
+const SpeedwireData SpeedwireData::InverterPowerACTotal   (0, 0, 0, 0, 0, NULL, 0, MeasurementType::InverterPower(),      Line::TOTAL);
+const SpeedwireData SpeedwireData::InverterPowerLoss      (0, 0, 0, 0, 0, NULL, 0, MeasurementType::InverterLoss(),       Line::LOSS_TOTAL);
+const SpeedwireData SpeedwireData::InverterPowerEfficiency(0, 0, 0, 0, 0, NULL, 0, MeasurementType::InverterEfficiency(), Line::NO_LINE);

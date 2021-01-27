@@ -55,7 +55,7 @@ SpeedwireCommand::~SpeedwireCommand(void) {
 /*
  *  Send login packet to peer, wait for response and check result
  */
-int SpeedwireCommand::login(const SpeedwireInfo& peer, const bool user, const char* password) {
+int32_t SpeedwireCommand::login(const SpeedwireInfo& peer, const bool user, const char* password) {
     // Request  534d4100000402a000000001003a0010 60650ea0 7a01842a71b30001 7d0042be283a0001 000000000280 0c04fdff 07000000 84030000 00d8e85f 00000000 c1c1c1c18888888888888888 00000000   => login command = 0xfffd040c, first = 0x00000007 (user 7, installer a), last = 0x00000384 (hier timeout), time = 0x5fdf9ae8, 0x00000000, pw 12 bytes
     // Response 534d4100000402a000000001002e0010 60650be0 7d0042be283a0001 7a01842a71b30001 000000000280 0d04fdff 07000000 84030000 00d8e85f 00000000 00000000 => login OK
     // Response 534d4100000402a000000001002e0010 60650be0 7d0042be283a0001 7a01842a71b30001 000100000280 0d04fdff 07000000 84030000 fddbe85f 00000000 00000000 => login INVALID PASSWORD
@@ -128,7 +128,7 @@ int SpeedwireCommand::login(const SpeedwireInfo& peer, const bool user, const ch
     return 0;
 }
 
-int SpeedwireCommand::logoff(const SpeedwireInfo& peer) {
+int32_t SpeedwireCommand::logoff(const SpeedwireInfo& peer) {
     // Request 534d4100000402a00000000100220010 606508a0 ffffffffffff0003 7d0052be283a0003 000000000280 0e01fdff ffffffff 00000000   => logoff command = 0xfffd01e0 (fehlt hier last?)
     // Request 534d4100000402a00000000100220010 606508a0 ffffffffffff0003 7d0042be283a0003 000000000180 e001fdff ffffffff 00000000
     // assemble unicast device logoff packet
@@ -162,7 +162,7 @@ int SpeedwireCommand::logoff(const SpeedwireInfo& peer) {
 }
 
 
-int SpeedwireCommand::query(const SpeedwireInfo& peer, const Command command, const uint32_t first_register, const uint32_t last_register, std::vector<SpeedwireData>& data) {
+int32_t SpeedwireCommand::query(const SpeedwireInfo& peer, const Command command, const uint32_t first_register, const uint32_t last_register, std::vector<SpeedwireRawData>& data) {
     // Request  534d4100000402a00000000100260010 606509a0 7a01842a71b30001 7d0042be283a0001 000000000380 00020058 00348200 ff348200 00000000 =>  query software version
     // Response 534d4100000402a000000001004e0010 606513a0 7d0042be283a00a1 7a01842a71b30001 000000000380 01020058 0a000000 0a000000 01348200 2ae5e65f 00000000 00000000 feffffff feffffff 040a1003 040a1003 00000000 00000000 00000000  code = 0x00823401    3 (BCD).10 (BCD).10 (BIN) Typ R (Enum)
     // Request  534d4100000402a00000000100260010 606509a0 7a01842a71b30001 7d0042be283a0001 000000000480 00020058 001e8200 ff208200 00000000 =>  query device type
@@ -257,7 +257,7 @@ int SpeedwireCommand::query(const SpeedwireInfo& peer, const Command command, co
         else {
             perror("query error code received");
         }
-        return -1;
+        return (-1 ^ 0xffff) | result;
     }
 
     // parse reply packet
@@ -278,7 +278,7 @@ int SpeedwireCommand::query(const SpeedwireInfo& peer, const Command command, co
                 perror("payload error");
                 return -1;
             }
-            SpeedwireData record_data(
+            SpeedwireRawData record_data(
                 (uint32_t)command,
                 (uint32_t)(reply.getDataUint32(record_offset) & 0x00ffff00),    // register id
                 (uint8_t) (reply.getDataUint32(record_offset) & 0x000000ff),    // connector id (mpp #1, mpp #2, ac #1)
@@ -295,7 +295,7 @@ int SpeedwireCommand::query(const SpeedwireInfo& peer, const Command command, co
         }
     }
 
-    return 0;
+    return (int32_t)data.size();
 }
 
 

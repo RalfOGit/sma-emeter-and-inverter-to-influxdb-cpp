@@ -91,7 +91,7 @@ SpeedwireDiscovery::SpeedwireDiscovery(LocalHost& host) :
 
 
 /**
- *  Destructor - close all open sockets before clearing the device list
+ *  Destructor - clear the device list
  */
 SpeedwireDiscovery::~SpeedwireDiscovery(void) {
     speedwireDevices.clear();

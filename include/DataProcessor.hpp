@@ -31,8 +31,8 @@ public:
     DataProcessor(const unsigned long averagingTime);
     ~DataProcessor(void);
 
-    virtual void consume(const ObisFilterData &element);
-    virtual void consume(const SpeedwireFilterData& element);
+    virtual void consume(const ObisData &element);
+    virtual void consume(const SpeedwireData& element);
     void flush(void);
 
     void produce(const std::string &device, const MeasurementType &type, const Line, const double value);

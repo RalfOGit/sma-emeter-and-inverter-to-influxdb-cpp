@@ -9,7 +9,7 @@ DataProcessor::DataProcessor(const unsigned long averagingTime) :
     influxDB(influxdb::InfluxDBFactory::Get("http://localhost:8086/?db=test")),
   //influxDB(influxdb::InfluxDBFactory::Get("http://192.168.178.16:8086/?db=test")),
     influxPoint("sma_emeter") {
-    influxDB->batchOf(75);
+    influxDB->batchOf(100);
     this->averagingTime = averagingTime;
     this->obis_remainder = 0;
     this->obis_currentTimestamp = 0;
@@ -23,7 +23,7 @@ DataProcessor::DataProcessor(const unsigned long averagingTime) :
 
 DataProcessor::~DataProcessor(void) {}
 
-void DataProcessor::consume(const ObisFilterData &element) {
+void DataProcessor::consume(const ObisData &element) {
     //element.print(stdout);
     MeasurementValue *measurement = element.measurementValue;
     if (measurement != NULL) {
@@ -36,6 +36,7 @@ void DataProcessor::consume(const ObisFilterData &element) {
         else if (measurement->timer != obis_currentTimestamp) {
             obis_remainder += measurement->elapsed;
             obis_averagingTimeReached = (obis_remainder >= averagingTime);
+            //printf("obis_averagingTimeReached %d\n", obis_averagingTimeReached);
             if  (obis_averagingTimeReached == true) {
                 obis_remainder %= averagingTime;
             }
@@ -69,7 +70,7 @@ void DataProcessor::consume(const ObisFilterData &element) {
 }
 
 
-void DataProcessor::consume(const SpeedwireFilterData& element) {
+void DataProcessor::consume(const SpeedwireData& element) {
     //element.print(stdout); fprintf(stdout, "speedwire_currentTimestamp %ld\n", speedwire_currentTimestamp);
     MeasurementValue* measurement = element.measurementValue;
     if (measurement != NULL) {
