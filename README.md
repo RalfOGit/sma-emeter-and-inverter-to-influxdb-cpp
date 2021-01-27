@@ -39,4 +39,4 @@ It comes with a simple makefile supporting the following commands:
 - make debug
 - make release
 
-![InfluxDB Grafana View #1](screenshot#1.png?raw=true)
+![InfluxDB Grafana View #1](./screenshot#1.png?raw=true)
