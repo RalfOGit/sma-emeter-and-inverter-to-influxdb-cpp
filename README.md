@@ -5,7 +5,7 @@ SMA-Emeters(TM) send out udp packets including electrical power and energy measu
 
 SMA-Inverters(TM) provide electrical power production data on request. There is no official specification document provided by the manufactuer, but there are a number of projects on the internet describing what is publicly known today; please refer to the list given at the end of this document.
 
-I am using it to monitor the electrical energy consumption at the grid connection point of my house and also to measure the photovoltaic energy production of my small solar plant. Measurement data is persisted inside InfluxDB(TM) and visualized using Grafana(TM).
+I am using it to monitor the electrical energy flow at the grid connection point of my house and also to measure the photovoltaic energy production of my small solar plant. Measurement data is persisted inside InfluxDB(TM) and visualized using Grafana(TM).
 
 The executable starts by discovering all SMA-Emeter(TM) and SMA-Inverter(TM) devices on all ip networks connected to the host running the executable. For discovery, it listens to inbound datagrams from the SMA Speedwire(TM) multicast group 239.12.255.254 at port 9522 an all connected interfaces, and starts a unicast scan within all connected local subnets on port 9522. 
 
@@ -38,3 +38,5 @@ It comes with a simple makefile supporting the following commands:
 - make clean
 - make debug
 - make release
+
+![InfluxDB Grafana View #1](screenshot#1.png?raw=true)
