@@ -29,6 +29,11 @@ void ObisType::print(const uint64_t value, FILE *file) const {
     fprintf(file, "%s 0x%016llx %llu\n", toString().c_str(), value, value);
 }
 
+std::array<uint8_t, 8> ObisType::toRawBytes(void) const {
+    std::array<uint8_t, 8> bytes = { channel, index, type, tariff, 0, 0, 0, 0 };
+    return bytes;
+}
+
 
 /**
  *  Class holding an emeter measurement together with its corresponding obis data definition and measurement type definition
@@ -109,4 +114,7 @@ const ObisData ObisData::VoltageL3                (0, 72, 4, 0, MeasurementType:
 const ObisData ObisData::CurrentL1                (0, 31, 4, 0, MeasurementType::EmeterCurrent(),              Line::L1);
 const ObisData ObisData::CurrentL2                (0, 51, 4, 0, MeasurementType::EmeterCurrent(),              Line::L2);
 const ObisData ObisData::CurrentL3                (0, 71, 4, 0, MeasurementType::EmeterCurrent(),              Line::L3);
-const ObisData ObisData::SignedActivePowerTotal   (0, 16, 7, 0, MeasurementType::EmeterSignedActivePower(),    Line::TOTAL);
+const ObisData ObisData::SignedActivePowerTotal   (0, 16, 7, 0, MeasurementType::EmeterSignedActivePower(),    Line::TOTAL); 
+const ObisData ObisData::SignedActivePowerL1      (0, 36, 7, 0, MeasurementType::EmeterSignedActivePower(),    Line::L1); 
+const ObisData ObisData::SignedActivePowerL2      (0, 56, 7, 0, MeasurementType::EmeterSignedActivePower(),    Line::L2);
+const ObisData ObisData::SignedActivePowerL3      (0, 76, 7, 0, MeasurementType::EmeterSignedActivePower(),    Line::L3);

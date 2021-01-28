@@ -35,26 +35,26 @@ int main(int argc, char **argv) {
 
     // define measurement filters for sma emeter packet filtering
     ObisFilter filter;
-    filter.addFilter(ObisData::PositiveActivePowerTotal);
-    filter.addFilter(ObisData::PositiveActivePowerL1);
-    filter.addFilter(ObisData::PositiveActivePowerL2);
-    filter.addFilter(ObisData::PositiveActivePowerL3);
+    //filter.addFilter(ObisData::PositiveActivePowerTotal);
+    //filter.addFilter(ObisData::PositiveActivePowerL1);
+    //filter.addFilter(ObisData::PositiveActivePowerL2);
+    //filter.addFilter(ObisData::PositiveActivePowerL3);
     //filter.addFilter(ObisData::PositiveActiveEnergyTotal);
     //filter.addFilter(ObisData::PositiveActiveEnergyL1);
     //filter.addFilter(ObisData::PositiveActiveEnergyL2);
     //filter.addFilter(ObisData::PositiveActiveEnergyL3);
-    filter.addFilter(ObisData::NegativeActivePowerTotal);
-    filter.addFilter(ObisData::NegativeActivePowerL1);
-    filter.addFilter(ObisData::NegativeActivePowerL2);
-    filter.addFilter(ObisData::NegativeActivePowerL3);
+    //filter.addFilter(ObisData::NegativeActivePowerTotal);
+    //filter.addFilter(ObisData::NegativeActivePowerL1);
+    //filter.addFilter(ObisData::NegativeActivePowerL2);
+    //filter.addFilter(ObisData::NegativeActivePowerL3);
     //filter.addFilter(ObisData::NegativeActiveEnergyTotal);
     //filter.addFilter(ObisData::NegativeActiveEnergyL1);
     //filter.addFilter(ObisData::NegativeActiveEnergyL2); 
     //filter.addFilter(ObisData::NegativeActiveEnergyL3); 
-    //filter.addFilter(ObisData::PowerFactorTotal);
-    //filter.addFilter(ObisData::PowerFactorL1);
-    //filter.addFilter(ObisData::PowerFactorL2);
-    //filter.addFilter(ObisData::PowerFactorL3);
+    filter.addFilter(ObisData::PowerFactorTotal);
+    filter.addFilter(ObisData::PowerFactorL1);
+    filter.addFilter(ObisData::PowerFactorL2);
+    filter.addFilter(ObisData::PowerFactorL3);
     //filter.addFilter(ObisData::CurrentL1);
     //filter.addFilter(ObisData::CurrentL2);
     //filter.addFilter(ObisData::CurrentL3);
@@ -62,6 +62,9 @@ int main(int argc, char **argv) {
     //filter.addFilter(ObisData::VoltageL2);
     //filter.addFilter(ObisData::VoltageL3);
     filter.addFilter(ObisData::SignedActivePowerTotal);   // calculated value that is not provided by emeter
+    filter.addFilter(ObisData::SignedActivePowerL1);      // calculated value that is not provided by emeter
+    filter.addFilter(ObisData::SignedActivePowerL2);      // calculated value that is not provided by emeter
+    filter.addFilter(ObisData::SignedActivePowerL3);      // calculated value that is not provided by emeter
 
     // define measurement elements for sma inverter queries
     SpeedwireDataMap query_map;
@@ -204,25 +207,41 @@ static int poll_emeters(const std::vector<SpeedwireSocket> &sockets, struct poll
                     uint32_t timer = emeter.getTime();
 
                     // extract obis data from the emeter packet and pass each obis data element to the obis filter
-                    uint8_t obis_signed_power[8] = { 0, 16, 7, 0, 0, 0, 0, 0 };
-                    int32_t signed_power = 0;
+                    int32_t signed_power_total = 0, signed_power_l1 = 0, signed_power_l2 = 0, signed_power_l3 = 0;
                     void* obis = emeter.getFirstObisElement();
                     while (obis != NULL) {
                         //emeter.printObisElement(obis, stderr);
                         // ugly hack to calculate the signed power value
                         if (SpeedwireEmeterProtocol::getObisType(obis) == 4) {
+                            uint32_t value = SpeedwireEmeterProtocol::getObisValue4(obis);
                             switch (SpeedwireEmeterProtocol::getObisIndex(obis)) {
-                            case 1: signed_power += SpeedwireEmeterProtocol::getObisValue4(obis);  break;
-                            case 2: signed_power -= SpeedwireEmeterProtocol::getObisValue4(obis);  break;
+                            case  1: signed_power_total += value;  break;
+                            case  2: signed_power_total -= value;  break;
+                            case 21: signed_power_l1    += value;  break;
+                            case 22: signed_power_l1    -= value;  break;
+                            case 41: signed_power_l2    += value;  break;
+                            case 42: signed_power_l2    -= value;  break;
+                            case 61: signed_power_l3    += value;  break;
+                            case 62: signed_power_l3    -= value;  break;
                             }
                         }
                         // send the obis value to the obis filter before proceeding with then next obis element
                         filter.consume(obis, timer);
                         obis = emeter.getNextObisElement(obis);
                     }
-                    // send the calculated signed power value to the obis filter
-                    SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power[4], signed_power);
-                    filter.consume(obis_signed_power, timer);
+                    // send the calculated signed power values to the obis filter
+                    std::array<uint8_t, 8> obis_signed_power_total = ObisData::SignedActivePowerTotal.toRawBytes();
+                    std::array<uint8_t, 8> obis_signed_power_L1    = ObisData::SignedActivePowerL1.toRawBytes();
+                    std::array<uint8_t, 8> obis_signed_power_L2    = ObisData::SignedActivePowerL2.toRawBytes();
+                    std::array<uint8_t, 8> obis_signed_power_L3    = ObisData::SignedActivePowerL3.toRawBytes();
+                    SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_total[4], signed_power_total);
+                    SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L1   [4], signed_power_l1);
+                    SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L2   [4], signed_power_l2);
+                    SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L3   [4], signed_power_l3);
+                    filter.consume(obis_signed_power_total.data(), timer);
+                    filter.consume(obis_signed_power_L1.data(), timer);
+                    filter.consume(obis_signed_power_L2.data(), timer);
+                    filter.consume(obis_signed_power_L3.data(), timer);
                     ++npackets;
                 }
             }

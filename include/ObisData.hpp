@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <stdio.h>
 #include <string>
+#include <array>
 #include <Measurement.hpp>
 
 
@@ -24,6 +25,8 @@ public:
     std::string toString(void) const;
     void print(const uint32_t value, FILE *file) const;
     void print(const uint64_t value, FILE *file) const;
+
+    std::array<uint8_t, 8> toRawBytes(void) const;
 };
 
 
@@ -75,6 +78,9 @@ public:
     static const ObisData CurrentL2;
     static const ObisData CurrentL3;
     static const ObisData SignedActivePowerTotal;
+    static const ObisData SignedActivePowerL1;
+    static const ObisData SignedActivePowerL2;
+    static const ObisData SignedActivePowerL3;
 };
 
 #endif
