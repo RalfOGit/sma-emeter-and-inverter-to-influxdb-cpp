@@ -271,21 +271,23 @@ std::vector<LocalHost::InterfaceInfo> LocalHost::queryLocalInterfaceInfos(void) 
             struct ifreq buffer;
             memset(&buffer, 0x00, sizeof(buffer));
             strcpy(buffer.ifr_name, req[i].ifr_name);
+            InterfaceInfo info;
+            info.if_name = std::string(buffer.ifr_name);
+            info.if_index = if_nametoindex(buffer.ifr_name);
+            std::string ip_name = toString(req[i].ifr_ifru.ifru_addr);
+            info.ip_addresses.push_back(ip_name);
+#ifndef __APPLE__
             if (ioctl(s, SIOCGIFHWADDR, &buffer) == 0) {
                 struct sockaddr saddr = buffer.ifr_ifru.ifru_hwaddr;
                 char mac_addr[18];
                 snprintf(mac_addr, sizeof(mac_addr), "%02X:%02X:%02X:%02X:%02X:%02X",
                     (uint8_t)saddr.sa_data[0], (uint8_t)saddr.sa_data[1], (uint8_t)saddr.sa_data[2],
                     (uint8_t)saddr.sa_data[3], (uint8_t)saddr.sa_data[4], (uint8_t)saddr.sa_data[5]);
-                InterfaceInfo info;
-                info.if_name = std::string(buffer.ifr_name);
-                info.if_index = if_nametoindex(buffer.ifr_name);
                 info.mac_address = mac_addr;
-                std::string ip_name = toString(req[i].ifr_ifru.ifru_addr);
-                fprintf(stdout, "address: %28.*s  mac: %s  name: \"%s\"\n", (int)ip_name.length(), ip_name.c_str(), mac_addr, info.if_name.c_str());
-                info.ip_addresses.push_back(ip_name);
-                addresses.push_back(info);
             }
+#endif
+            fprintf(stdout, "address: %28.*s  mac: %s  name: \"%s\"\n", (int)ip_name.length(), ip_name.c_str(), info.mac_address.c_str(), info.if_name.c_str());
+            addresses.push_back(info);
         }
     }
     close(s);
@@ -436,7 +438,7 @@ uint64_t LocalHost::getTickCountInMs(void) {  // return a tick counter with ms r
     return GetTickCount64();
 #else
     struct timespec spec;
-    if (clock_gettime(1, &spec) == -1) { /* 1 is CLOCK_MONOTONIC */
+    if (clock_gettime(CLOCK_MONOTONIC, &spec) == -1) {
         abort();
     }
     return spec.tv_sec * 1000 + spec.tv_nsec / 1e6;
