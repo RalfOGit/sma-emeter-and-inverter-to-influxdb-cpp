@@ -26,7 +26,7 @@ public:
     void print(const uint32_t value, FILE *file) const;
     void print(const uint64_t value, FILE *file) const;
 
-    std::array<uint8_t, 8> toRawBytes(void) const;
+    std::array<uint8_t, 8> toByteArray(void) const;
 };
 
 

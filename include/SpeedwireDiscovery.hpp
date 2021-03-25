@@ -17,7 +17,7 @@ public:
     std::string peer_ip_address;
     std::string interface_ip_address;
 
-    SpeedwireInfo(const LocalHost& localhost);
+    SpeedwireInfo(void);
     std::string toString(void) const;
     bool operator==(const SpeedwireInfo& rhs) const;
     bool isPreRegistered(void) const;
