@@ -4,12 +4,10 @@ cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_CXX_STANDARD 11)
 
-# TODO: make InfluxDB optional
-find_package(InfluxDB REQUIRED)
+find_package(InfluxDB)
 
 set(COMMON_SOURCES
     src/DataProcessor.cpp
-    src/InfluxDBProducer.cpp
     src/LocalHost.cpp
     src/Measurement.cpp
     src/ObisData.cpp
@@ -24,22 +22,30 @@ set(COMMON_SOURCES
     src/SpeedwireSocket.cpp
     src/SpeedwireSocketFactory.cpp
     src/SpeedwireSocketSimple.cpp
-    src/main.cpp
 )
 
-add_executable(${PROJECT_NAME}
+add_library(${PROJECT_NAME} STATIC
     ${COMMON_SOURCES}
 )
 
-if (InfluxDB_FOUND)
-    target_link_libraries(${PROJECT_NAME} InfluxData::InfluxDB)
-endif (InfluxDB_FOUND)
-
 target_include_directories(${PROJECT_NAME}
-PRIVATE
+PUBLIC
     include
 )
 
-install(TARGETS ${PROJECT_NAME}
-    RUNTIME DESTINATION bin
-)
+if (InfluxDB_FOUND)
+    add_executable(${PROJECT_NAME}-bin
+        src/InfluxDBProducer.cpp
+        src/main.cpp
+    )
+    target_link_libraries(${PROJECT_NAME}-bin
+        ${PROJECT_NAME}
+        InfluxData::InfluxDB
+    )
+    set_target_properties(${PROJECT_NAME}-bin
+        PROPERTIES OUTPUT_NAME ${PROJECT_NAME}
+    )
+    install(TARGETS ${PROJECT_NAME}
+        RUNTIME DESTINATION bin
+    )
+endif (InfluxDB_FOUND)
