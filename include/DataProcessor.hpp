@@ -8,7 +8,9 @@
 #include <SpeedwireData.hpp>
 #include <Measurement.hpp>
 #include <ObisFilter.hpp>
-#include <InfluxDB.h>
+
+
+class Producer;
 
 
 class DataProcessor : public ObisConsumer, SpeedwireConsumer {
@@ -23,20 +25,15 @@ protected:
     uint32_t      speedwire_currentTimestamp;
     bool          speedwire_currentTimestampIsValid;
     bool          speedwire_averagingTimeReached;
-    std::unique_ptr<influxdb::InfluxDB> influxDB;
-    influxdb::Point                     influxPoint;
+    Producer&     producer;
 
 public:
 
-    DataProcessor(const unsigned long averagingTime);
+    DataProcessor(const unsigned long averagingTime, Producer& producer);
     ~DataProcessor(void);
 
     virtual void consume(const ObisData &element);
     virtual void consume(const SpeedwireData& element);
-    void flush(void);
-
-    void produce(const std::string &device, const MeasurementType &type, const Line, const double value);
-
 };
 
 #endif

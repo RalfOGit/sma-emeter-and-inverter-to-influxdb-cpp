@@ -20,6 +20,7 @@
 #include <SpeedwireDiscovery.hpp>
 #include <ObisFilter.hpp>
 #include <DataProcessor.hpp>
+#include <InfluxDBProducer.hpp>
 
 
 static int poll_emeters(const std::vector<SpeedwireSocket>& sockets, struct pollfd* const fds, const int poll_emeter_timeout_in_ms, ObisFilter& filter);
@@ -91,7 +92,8 @@ int main(int argc, char **argv) {
     query_map.add(SpeedwireData::InverterRelay);
 
     // configure processing chain
-    DataProcessor processor(60000);
+    InfluxDBProducer producer;
+    DataProcessor processor(60000, producer);
     filter.addConsumer(&processor);
     SpeedwireCommand command(localhost, discoverer.getDevices());
 
@@ -129,7 +131,7 @@ int main(int argc, char **argv) {
         // poll sockets for inbound emeter packets
         int npackets = poll_emeters(sockets, fds, poll_emeter_timeout_in_ms, filter);
         if (npackets > 0) {
-            processor.flush();
+            producer.flush();
         }
 
         // if the query interval has elapsed for the inverters, start a query
@@ -143,7 +145,7 @@ int main(int argc, char **argv) {
                     printf("QUERY INVERTER  time 0x%016llx\n", localhost.getTickCountInMs());
                     int nreplies = query_inverter(device, command, query_map, processor, needs_login, night_mode);
                     if (nreplies > 0) {
-                        processor.flush();
+                        producer.flush();
                     }
                 }
             }
