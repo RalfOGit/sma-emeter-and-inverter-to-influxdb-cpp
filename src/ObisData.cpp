@@ -29,7 +29,7 @@ void ObisType::print(const uint64_t value, FILE *file) const {
     fprintf(file, "%s 0x%016llx %llu\n", toString().c_str(), value, value);
 }
 
-std::array<uint8_t, 8> ObisType::toRawBytes(void) const {
+std::array<uint8_t, 8> ObisType::toByteArray(void) const {
     std::array<uint8_t, 8> bytes = { channel, index, type, tariff, 0, 0, 0, 0 };
     return bytes;
 }

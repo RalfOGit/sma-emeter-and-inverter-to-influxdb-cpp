@@ -31,6 +31,7 @@ int main(int argc, char **argv) {
     // discover sma devices on the local network
     LocalHost localhost;
     SpeedwireDiscovery discoverer(localhost);
+    //discoverer.preRegisterDevice("192.168.182.18");
     discoverer.discoverDevices();
 
     // define measurement filters for sma emeter packet filtering
@@ -230,10 +231,10 @@ static int poll_emeters(const std::vector<SpeedwireSocket> &sockets, struct poll
                         obis = emeter.getNextObisElement(obis);
                     }
                     // send the calculated signed power values to the obis filter
-                    std::array<uint8_t, 8> obis_signed_power_total = ObisData::SignedActivePowerTotal.toRawBytes();
-                    std::array<uint8_t, 8> obis_signed_power_L1    = ObisData::SignedActivePowerL1.toRawBytes();
-                    std::array<uint8_t, 8> obis_signed_power_L2    = ObisData::SignedActivePowerL2.toRawBytes();
-                    std::array<uint8_t, 8> obis_signed_power_L3    = ObisData::SignedActivePowerL3.toRawBytes();
+                    std::array<uint8_t, 8> obis_signed_power_total = ObisData::SignedActivePowerTotal.toByteArray();
+                    std::array<uint8_t, 8> obis_signed_power_L1    = ObisData::SignedActivePowerL1.toByteArray();
+                    std::array<uint8_t, 8> obis_signed_power_L2    = ObisData::SignedActivePowerL2.toByteArray();
+                    std::array<uint8_t, 8> obis_signed_power_L3    = ObisData::SignedActivePowerL3.toByteArray();
                     SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_total[4], signed_power_total);
                     SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L1   [4], signed_power_l1);
                     SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L2   [4], signed_power_l2);
