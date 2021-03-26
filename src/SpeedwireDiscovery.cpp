@@ -183,62 +183,11 @@ int SpeedwireDiscovery::discoverDevices(void) {
         fds[j++].fd = socket.getSocketFd();
     }
 
-    // find any pre-registered devices and resolve their details
-    std::vector<SpeedwireInfo> copyOfSpeedwireDevices = speedwireDevices;   // work on a copy as recvDiscoveryPackets() may update the std::vector
-    for (auto& device : copyOfSpeedwireDevices) {
-        if (device.isPreRegistered()) {
-            std::string addr = device.peer_ip_address;
-
-            // send unicast discovery request packet to all local interfaces; this is necessary, as the pre-registered device could be on a different subnet
-            for (auto& ip : localIPs) {
-                SpeedwireSocket send_socket = SpeedwireSocketFactory::getInstance(localhost)->getSendSocket(SpeedwireSocketFactory::UNICAST, ip);
-                sockaddr_in sockaddr;
-                sockaddr.sin_family = AF_INET;
-                sockaddr.sin_addr = localhost.toInAddress(addr);
-                sockaddr.sin_port = htons(9522);
-                int nbytes = send_socket.sendto(unicast_request, sizeof(unicast_request), sockaddr);
-            }
-
-            // wait for a packet on the configured receive sockets
-            const uint64_t maxWaitTimeInMillis = 5000u;
-            uint64_t startTimeInMillis = localhost.getTickCountInMs();
-            while ((localhost.getTickCountInMs() - startTimeInMillis) < maxWaitTimeInMillis) {
-
-                // prepare pollfd structure
-                j = 0;
-                for (auto& socket : sockets) {
-                    fds[j].events = POLLIN;
-                    fds[j++].revents = 0;
-                }
-
-                if (poll(fds, (uint32_t)sockets.size(), 100) < 0) {     // timeout 10 ms
-                    perror("poll failed");
-                    break;
-                }
-
-                // determine the socket that received a packet and process the reply packet
-                j = 0;
-                for (auto& socket : sockets) {
-                    if ((fds[j].revents & POLLIN) != 0) {
-                        recvDiscoveryPackets(sockets[j]);
-                    }
-                    j++;
-                }
-
-                // check if the device has been fully registered
-                for (auto& dev : speedwireDevices) {
-                    if (dev.peer_ip_address == addr && dev.isPreRegistered() == false) {
-                        startTimeInMillis -= maxWaitTimeInMillis;
-                    }
-                }
-            }
-        }
-    }
-
     // wait for inbound multicast packets
     const uint64_t maxWaitTimeInMillis = 2000u;
     uint64_t startTimeInMillis = localhost.getTickCountInMs();
     size_t broadcast_counter = 0;
+    size_t prereg_counter = 0;
     size_t subnet_counter = 1;
     size_t socket_counter = 0;
 
@@ -253,7 +202,7 @@ int SpeedwireDiscovery::discoverDevices(void) {
 
         // send discovery request packet and update counters
         for (int i = 0; i < 10; ++i) {
-            if (sendDiscoveryPackets(sockets, broadcast_counter, subnet_counter, socket_counter)) {
+            if (sendDiscoveryPackets(broadcast_counter, prereg_counter, subnet_counter, socket_counter)) {
                 startTimeInMillis = localhost.getTickCountInMs();
             }
         }
@@ -289,16 +238,32 @@ int SpeedwireDiscovery::discoverDevices(void) {
  *  - multicast speedwire discovery requests to all interfaces
  *  - unicast speedwire discovery requests to all hosts on the network
  */
-bool SpeedwireDiscovery::sendDiscoveryPackets(const std::vector<SpeedwireSocket>& sockets, size_t& broadcast_counter, size_t& subnet_counter, size_t& socket_counter) {
+bool SpeedwireDiscovery::sendDiscoveryPackets(size_t& broadcast_counter, size_t& prereg_counter, size_t& subnet_counter, size_t& socket_counter) {
 
     // sequentially first send multicast speedwire discovery requests
     std::vector<std::string> localIPs = localhost.getLocalIPv4Addresses();
     if (broadcast_counter < localIPs.size()) {
         const std::string addr = localIPs[broadcast_counter];
         SpeedwireSocket socket = SpeedwireSocketFactory::getInstance(localhost)->getSendSocket(SpeedwireSocketFactory::MULTICAST, addr);
+        //fprintf(stdout, "send broadcast discovery request to %s (via interface %s)\n", localhost.toString(socket.getSpeedwireMulticastIn4Address()).c_str(), socket.getLocalInterfaceAddress().c_str());
         int nbytes = socket.send(multicast_request, sizeof(multicast_request));
-        //fprintf(stdout, "send broadcast discovery request to %s\n", localhost.toString(sockets[broadcast_counter].getSpeedwireMulticastIn4Address()).c_str());
         broadcast_counter++;
+        return true;
+    }
+    // followed by pre-registered ip addresses
+    if (prereg_counter < localIPs.size()) {
+        for (auto& device : speedwireDevices) {
+            if (device.isPreRegistered()) {
+                SpeedwireSocket socket = SpeedwireSocketFactory::getInstance(localhost)->getSendSocket(SpeedwireSocketFactory::UNICAST, localIPs[prereg_counter]);
+                sockaddr_in sockaddr;
+                sockaddr.sin_family = AF_INET;
+                sockaddr.sin_addr = localhost.toInAddress(device.peer_ip_address);
+                sockaddr.sin_port = htons(9522);
+                //fprintf(stdout, "send unicast discovery request to %s (via interface %s)\n", device.peer_ip_address.c_str(), socket.getLocalInterfaceAddress().c_str());
+                int nbytes = socket.sendto(unicast_request, sizeof(unicast_request), sockaddr);
+            }
+        }
+        prereg_counter++;
         return true;
     }
     // followed by unicast speedwire discovery requests
@@ -316,8 +281,8 @@ bool SpeedwireDiscovery::sendDiscoveryPackets(const std::vector<SpeedwireSocket>
             sockaddr.sin_family = AF_INET;
             sockaddr.sin_addr = localhost.toInAddress(addr);
             sockaddr.sin_port = htons(9522);
+            //fprintf(stdout, "send unicast discovery request to %s (via interface %s)\n", localhost.toString(sockaddr).c_str(), socket.getLocalInterfaceAddress().c_str());
             int nbytes = socket.sendto(unicast_request, sizeof(unicast_request), sockaddr);
-            //fprintf(stdout, "send unicast discovery request to %s\n", localhost.toString(sockaddr).c_str());
         }
         ++subnet_counter;
         return true;

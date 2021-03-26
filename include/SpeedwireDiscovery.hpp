@@ -35,7 +35,7 @@ protected:
 
     std::vector<SpeedwireInfo> speedwireDevices;
 
-    bool sendDiscoveryPackets(const std::vector<SpeedwireSocket>& sockets, size_t& broadcast_counter, size_t& subnet_counter, size_t& socket_counter);
+    bool sendDiscoveryPackets(size_t& broadcast_counter, size_t& prereg_counter, size_t& subnet_counter, size_t& socket_counter);
     bool recvDiscoveryPackets(const SpeedwireSocket &socket);
 
 public:
