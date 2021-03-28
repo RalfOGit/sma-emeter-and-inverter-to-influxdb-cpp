@@ -17,7 +17,7 @@ Also within the main loop, it queries all discovered inverters at predefined reg
 
 The software comes as is. No warrantees whatsoever are given and no responsibility is assumed in case of failure. There is neither a GUI nor a configuration file. Configurations must be tweaked by modifying main.cpp. A number of obis definitions are given, some of them are commented out, since I do not need them. A few inverter command definitions are given. InfluxDB specific configurations are found in InfluxDBProducer.cpp. 
 
-The code is based on a Speedwire(TM) access library implementation https://github.com/RalfOGit/libspeedwire. The libspeedwire library implements a full parser for the sma header and the emeter datagram structure, including obis filtering. In addition, it implements some parsing functionality for inverter query and response datagrams. For convenience you may want to create a libspeedwire/ folder right next to the src/ and include/ folders of this repository. 
+The code is based on a Speedwire(TM) access library implementation https://github.com/RalfOGit/libspeedwire. The libspeedwire library implements a full parser for the sma header and the emeter datagram structure, including obis filtering. In addition, it implements some parsing functionality for inverter query and response datagrams. For convenience you may want to place the libspeedwire/ folder right next to the src/ and include/ folders of this repository. 
 
 The accompanied CMakeLists.txt assumes the following folder structure:
 
@@ -25,7 +25,11 @@ The accompanied CMakeLists.txt assumes the following folder structure:
    - src
    - include
    - libspeedwire
+     - src
+     - include
+     - CMakeLists.txt
    - ... build path ...
+   - CMakeLists.txt
  - influxdb-cxx
    - src
    - include
