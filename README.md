@@ -15,11 +15,27 @@ Within the main loop it listens to the above mentioned SMA Speedwire(TM) multica
 
 Also within the main loop, it queries all discovered inverters at predefined regular intervals. This is done by sending udp unicast queries to each inverter and analyzing the corresponding udp unicast responses. It also passes these measurements to InfluxDB(TM). The same averaging mechanism can be applied if needed.
 
-The software comes as is. No warrantees whatsoever are given and no responsibility is assumed in case of failure. There is neither a GUI nor a configuration file. Configurations must be tweaked by modifying main.cpp. A number of obis definitions are given, some of them are commented out, since I do not need them. A few inverter command definitions are given. InfluxDB specific configurations are found in DataProcessor.cpp. 
+The software comes as is. No warrantees whatsoever are given and no responsibility is assumed in case of failure. There is neither a GUI nor a configuration file. Configurations must be tweaked by modifying main.cpp. A number of obis definitions are given, some of them are commented out, since I do not need them. A few inverter command definitions are given. InfluxDB specific configurations are found in InfluxDBProducer.cpp. 
 
-The code comes with a decent SMA Speedwire(TM) library implementation. It implements a full parser for the sma header and the emeter datagram structure, including obis filtering. In addition, it implements some parsing functionality for inverter query and response datagrams.
+The code is based on a Speedwire(TM) access library implementation https://github.com/RalfOGit/libspeedwire. The libspeedwire library implements a full parser for the sma header and the emeter datagram structure, including obis filtering. In addition, it implements some parsing functionality for inverter query and response datagrams. For convenience you may want to create a libspeedwire/ folder right next to the src/ and include/ folders of this repository. 
 
-The code relies on the InfluxDB(TM) C++ client library written by Adam Wegrzynek https://github.com/awegrzyn/influxdb-cxx.
+The accompanied CMakeLists.txt assumes the following folder structure:
+
+# - sma-emeter-grabber
+#   - src
+#   - include
+#   - libspeedwire
+#   - ... build path ...
+# - influxdb-cxx
+#   - src
+#   - include
+#   - lib
+#   - ... install path ...
+# - libcurl (windows only; for linux it is likely installed in /usr/lib64)
+#   - include
+#   - lib
+
+The code also relies on the InfluxDB(TM) C++ client library written by Adam Wegrzynek https://github.com/awegrzyn/influxdb-cxx, where InfluxDB(DB) in turn relies on libcurl.
 
 Further information regarding the SMA-Inverter(TM) datagrams can be found in various places on the internet:
 - https://github.com/SBFspot/SBFspot
