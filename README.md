@@ -21,19 +21,19 @@ The code is based on a Speedwire(TM) access library implementation https://githu
 
 The accompanied CMakeLists.txt assumes the following folder structure:
 
-# - sma-emeter-grabber
-#   - src
-#   - include
-#   - libspeedwire
-#   - ... build path ...
-# - influxdb-cxx
-#   - src
-#   - include
-#   - lib
-#   - ... install path ...
-# - libcurl (windows only; for linux it is likely installed in /usr/lib64)
-#   - include
-#   - lib
+- sma-emeter-grabber
+   - src
+   - include
+   - libspeedwire
+   - ... build path ...
+ - influxdb-cxx
+   - src
+   - include
+   - lib
+   - ... install path ...
+ - libcurl (windows only; for linux it is likely installed in /usr/lib64)
+   - include
+   - lib
 
 The code also relies on the InfluxDB(TM) C++ client library written by Adam Wegrzynek https://github.com/awegrzyn/influxdb-cxx, where InfluxDB(DB) in turn relies on libcurl.
 
