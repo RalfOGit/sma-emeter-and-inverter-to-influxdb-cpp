@@ -23,7 +23,7 @@
 #include <InfluxDBProducer.hpp>
 
 
-static int poll_emeters(const std::vector<SpeedwireSocket>& sockets, struct pollfd* const fds, const int poll_emeter_timeout_in_ms, ObisFilter& filter);
+static int poll_emeters(const std::vector<SpeedwireSocket>& sockets, struct pollfd* const fds, const int poll_emeter_timeout_in_ms, ObisFilter& filter, const LocalHost &localhost, const std::vector<SpeedwireInfo>& devices);
 static int query_inverter(const SpeedwireInfo& device, SpeedwireCommand& command, SpeedwireDataMap& query_map, DataProcessor& processor, bool& needs_login, bool& night_mode);
 
 
@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
         }
 
         // poll sockets for inbound emeter packets
-        int npackets = poll_emeters(sockets, fds, poll_emeter_timeout_in_ms, filter);
+        int npackets = poll_emeters(sockets, fds, poll_emeter_timeout_in_ms, filter, localhost, discoverer.getDevices());
         if (npackets > 0) {
             producer.flush();
         }
@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
 /**
  +  poll all configured sockets for emeter udp packets and pass emeter data to the obis filter 
  */
-static int poll_emeters(const std::vector<SpeedwireSocket> &sockets, struct pollfd* const fds, const int poll_emeter_timeout_in_ms, ObisFilter &filter) {
+static int poll_emeters(const std::vector<SpeedwireSocket> &sockets, struct pollfd* const fds, const int poll_emeter_timeout_in_ms, ObisFilter &filter, const LocalHost& localhost, const std::vector<SpeedwireInfo>& devices) {
     int npackets = 0;
     unsigned char multicast_packet[1024];
 
@@ -172,7 +172,7 @@ static int poll_emeters(const std::vector<SpeedwireSocket> &sockets, struct poll
     }
 
     // wait for a packet on the configured socket
-    if (poll(fds, sockets.size(), poll_emeter_timeout_in_ms) < 0) {
+    if (poll(fds, (unsigned)sockets.size(), poll_emeter_timeout_in_ms) < 0) {
         perror("poll failure");
         return -1;
     }
@@ -233,10 +233,10 @@ static int poll_emeters(const std::vector<SpeedwireSocket> &sockets, struct poll
                         obis = emeter.getNextObisElement(obis);
                     }
                     // send the calculated signed power values to the obis filter
-                    std::array<uint8_t, 8> obis_signed_power_total = ObisData::SignedActivePowerTotal.toByteArray();
-                    std::array<uint8_t, 8> obis_signed_power_L1    = ObisData::SignedActivePowerL1.toByteArray();
-                    std::array<uint8_t, 8> obis_signed_power_L2    = ObisData::SignedActivePowerL2.toByteArray();
-                    std::array<uint8_t, 8> obis_signed_power_L3    = ObisData::SignedActivePowerL3.toByteArray();
+                    std::array<uint8_t, 12> obis_signed_power_total = ObisData::SignedActivePowerTotal.toByteArray();
+                    std::array<uint8_t, 12> obis_signed_power_L1    = ObisData::SignedActivePowerL1.toByteArray();
+                    std::array<uint8_t, 12> obis_signed_power_L2    = ObisData::SignedActivePowerL2.toByteArray();
+                    std::array<uint8_t, 12> obis_signed_power_L3    = ObisData::SignedActivePowerL3.toByteArray();
                     SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_total[4], signed_power_total);
                     SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L1   [4], signed_power_l1);
                     SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L2   [4], signed_power_l2);
@@ -310,5 +310,5 @@ static int query_inverter(const SpeedwireInfo &device, SpeedwireCommand &command
         // enable / disable night mode (it would be better to use dc_voltage, but it is not easily available here)
         night_mode = (dc_power.time != 0 && dc_power.measurementValue->value == 0);
     }
-    return reply_data.size();
+    return (int)reply_data.size();
 }
