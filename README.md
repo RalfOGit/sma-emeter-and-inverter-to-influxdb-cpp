@@ -50,13 +50,8 @@ Further information regarding the SMA-Inverter(TM) datagrams can be found in var
 
 The code has been tested against the following environment:
 - OS: CentOS 8(TM),   IDE: VSCode (TM)
-- OS: Windows 10(TM), IDE: Visual Studio Community Edition 2017 (TM)
+- OS: Windows 10(TM), IDE: Visual Studio Community Edition 2019 (TM)
 
 You will need to open your local firewall for udp packets on port 9522.
-
-It comes with a simple makefile supporting the following commands:
-- make clean
-- make debug
-- make release
 
 ![InfluxDB Grafana View #1](https://github.com/RalfOGit/sma-emeter-and-inverter-to-influxdb-cpp/blob/main/screenshot%231.png?raw=true)
