@@ -10,6 +10,7 @@
 #endif
 
 #include <LocalHost.hpp>
+#include <AddressConversion.hpp>
 #include <Measurement.hpp>
 #include <SpeedwireSocketFactory.hpp>
 #include <SpeedwireSocketSimple.hpp>
@@ -207,7 +208,7 @@ static int poll_emeters(const std::vector<SpeedwireSocket> &sockets, struct poll
                     SpeedwireEmeterProtocol emeter(multicast_packet + offset, nbytes - offset);
                     uint16_t susyid = emeter.getSusyID();
                     uint32_t serial = emeter.getSerialNumber();
-                    uint32_t timer = emeter.getTime();
+                    uint32_t timer  = emeter.getTime();
 
                     // extract obis data from the emeter packet and pass each obis data element to the obis filter
                     int32_t signed_power_total = 0, signed_power_l1 = 0, signed_power_l2 = 0, signed_power_l3 = 0;
