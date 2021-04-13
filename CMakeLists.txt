@@ -57,6 +57,7 @@ add_subdirectory("libspeedwire")
 # project sources and include path
 set(PROJECT_SOURCES
     src/InfluxDBProducer.cpp
+    src/PacketReceiver.cpp
     src/main.cpp
 )
 set(PROJECT_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
