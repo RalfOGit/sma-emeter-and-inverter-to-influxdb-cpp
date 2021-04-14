@@ -173,15 +173,20 @@ int main(int argc, char **argv) {
                     // query inverter for status and energy production data
                     logger.print(LogLevel::LOG_INFO_0, "query inverter  time %lu\n", (uint32_t)localhost.getUnixEpochTimeInMs());
 
-                    //query_inverter(device, command, query_map, processor, needs_login, night_mode);
-                 // int32_t return_code_1 = command.query(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF);    // query software version
-                 // int32_t return_code_2 = command.query(device, Command::COMMAND_DEVICE_QUERY, 0x00821E00, 0x008220FF);    // query device type
-                    int32_t return_code_3 = command.query(device, Command::COMMAND_DC_QUERY,     0x00251E00, 0x00251EFF);    // query dc power
-                    int32_t return_code_4 = command.query(device, Command::COMMAND_DC_QUERY,     0x00451F00, 0x004521FF);    // query dc voltage and current
-                    int32_t return_code_5 = command.query(device, Command::COMMAND_AC_QUERY,     0x00464000, 0x004642FF);    // query ac power
-                 // int32_t return_code_6 = command.query(device, Command::COMMAND_AC_QUERY,     0x00464800, 0x004655FF);    // query ac voltage and current
-                    int32_t return_code_7 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00214800, 0x002148FF);    // query device status
-                    int32_t return_code_8 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF);    // query grid relay status
+                 // int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF);    // query software version
+                 // int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00821E00, 0x008220FF);    // query device type
+                    int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,     0x00251E00, 0x00251EFF);    // query dc power
+                    int32_t return_code_4 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,     0x00451F00, 0x004521FF);    // query dc voltage and current
+                    int32_t return_code_5 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00464000, 0x004642FF);    // query ac power
+                 // int32_t return_code_6 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00464800, 0x004655FF);    // query ac voltage and current
+                    int32_t return_code_7 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00214800, 0x002148FF);    // query device status
+                    int32_t return_code_8 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF);    // query grid relay status
+                    //unsigned char buffer[2048];
+                    //int32_t return_code_3 = command.query(device, Command::COMMAND_DC_QUERY,     0x00251E00, 0x00251EFF, buffer, sizeof(buffer));    // query dc power
+                    //int32_t return_code_4 = command.query(device, Command::COMMAND_DC_QUERY,     0x00451F00, 0x004521FF, buffer, sizeof(buffer));    // query dc voltage and current
+                    //int32_t return_code_5 = command.query(device, Command::COMMAND_AC_QUERY,     0x00464000, 0x004642FF, buffer, sizeof(buffer));    // query ac power
+                    //int32_t return_code_7 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00214800, 0x002148FF, buffer, sizeof(buffer));    // query device status
+                    //int32_t return_code_8 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF, buffer, sizeof(buffer));    // query grid relay status
                     inverter_query = true;
                 }
             }
