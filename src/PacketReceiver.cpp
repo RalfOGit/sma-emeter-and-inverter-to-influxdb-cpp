@@ -35,7 +35,7 @@ void EmeterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct soc
 
     // check if it is an emeter packet
     if (speedwire_packet.isEmeterProtocolID() == true) {
-        SpeedwireEmeterProtocol emeter_packet(speedwire_packet);
+        const SpeedwireEmeterProtocol emeter_packet(speedwire_packet);
         uint16_t susyid = emeter_packet.getSusyID();
         uint32_t serial = emeter_packet.getSerialNumber();
         uint32_t timer  = emeter_packet.getTime();
@@ -101,7 +101,7 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
     int      offset     = speedwire_packet.getPayloadOffset();
 
     if (speedwire_packet.isInverterProtocolID() == true) {
-        SpeedwireInverterProtocol inverter_packet(speedwire_packet);
+        const SpeedwireInverterProtocol inverter_packet(speedwire_packet);
         uint16_t susyid   = inverter_packet.getSrcSusyID();
         uint32_t serial   = inverter_packet.getSrcSerialNumber();
         uint16_t packetid = inverter_packet.getPacketID();
@@ -113,7 +113,7 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
             inverter_logger.print(LogLevel::LOG_ERROR, "cannot find query token => DROPPED\n");
             return;
         }
-        SpeedwireCommandToken& token = command.getTokenRepository().at(token_index);
+        const SpeedwireCommandToken& token = command.getTokenRepository().at(token_index);
 
         // check if the inverter reply packet contains valid data
         bool valid = SpeedwireCommand::checkReply(speedwire_packet, src, token);
