@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
     Logger::setLogListener(log_listener, log_level);
 
     // discover sma devices on the local network
-    LocalHost localhost;
+    LocalHost& localhost = LocalHost::getInstance();
     SpeedwireDiscovery discoverer(localhost);
     //discoverer.preRegisterDevice("192.168.182.18");
     discoverer.discoverDevices();
