@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
 
     // define measurement filters for sma emeter packet filtering
     ObisFilter filter;
-    //filter.addFilter(ObisData::PositiveActivePowerTotal);
+    filter.addFilter(ObisData::PositiveActivePowerTotal);
     //filter.addFilter(ObisData::PositiveActivePowerL1);
     //filter.addFilter(ObisData::PositiveActivePowerL2);
     //filter.addFilter(ObisData::PositiveActivePowerL3);
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
     //filter.addFilter(ObisData::PositiveActiveEnergyL1);
     //filter.addFilter(ObisData::PositiveActiveEnergyL2);
     //filter.addFilter(ObisData::PositiveActiveEnergyL3);
-    //filter.addFilter(ObisData::NegativeActivePowerTotal);
+    filter.addFilter(ObisData::NegativeActivePowerTotal);
     //filter.addFilter(ObisData::NegativeActivePowerL1);
     //filter.addFilter(ObisData::NegativeActivePowerL2);
     //filter.addFilter(ObisData::NegativeActivePowerL3);

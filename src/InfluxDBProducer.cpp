@@ -18,7 +18,7 @@ void InfluxDBProducer::flush(void) {
 }
 
 
-void InfluxDBProducer::produce(const std::string &device, const MeasurementType &type, const Line line, const double value) {
+void InfluxDBProducer::produce(const std::string &device, const MeasurementType &type, const Wire line, const double value) {
     fprintf(stderr, "%s  %lf\n", type.getFullName(line).c_str(), value);
 
     influxPoint.addTag("device", device);

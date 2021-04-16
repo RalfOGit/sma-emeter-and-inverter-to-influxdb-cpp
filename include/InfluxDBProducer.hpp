@@ -19,7 +19,7 @@ public:
     ~InfluxDBProducer(void);
 
     void flush(void) override;
-    void produce(const std::string &device, const MeasurementType &type, const Line, const double value) override;
+    void produce(const std::string &device, const MeasurementType &type, const Wire, const double value) override;
 
 };
 
