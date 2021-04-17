@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     // discover sma devices on the local network
     LocalHost& localhost = LocalHost::getInstance();
     SpeedwireDiscovery discoverer(localhost);
-    //discoverer.preRegisterDevice("192.168.182.18");
+    discoverer.preRegisterDevice("192.168.182.18");
     discoverer.discoverDevices();
 
     // define measurement filters for sma emeter packet filtering
@@ -205,8 +205,8 @@ int main(int argc, char **argv) {
                 logger.print(LogLevel::LOG_INFO_0, "aggregate inverter data time %lu\n", (uint32_t)localhost.getUnixEpochTimeInMs());
 
                 // derive values for inverter total dc and ac power, efficiency and power loss; these are not explicitly provided in the query data
-                SpeedwireData dc_power(SpeedwireData::InverterPowerDCTotal);    dc_power.measurementValue->value = 0.0;
-                SpeedwireData ac_power(SpeedwireData::InverterPowerACTotal);    ac_power.measurementValue->value = 0.0;
+                SpeedwireData dc_power(SpeedwireData::InverterPowerDCTotal);    dc_power.measurementValue.value = 0.0;
+                SpeedwireData ac_power(SpeedwireData::InverterPowerACTotal);    ac_power.measurementValue.value = 0.0;
                 SpeedwireData loss(SpeedwireData::InverterPowerLoss);
                 SpeedwireData efficiency(SpeedwireData::InverterPowerEfficiency);
                 query_map.addValueToTarget(SpeedwireData::InverterPowerMPP1.toKey(), dc_power);
@@ -214,11 +214,11 @@ int main(int argc, char **argv) {
                 query_map.addValueToTarget(SpeedwireData::InverterPowerL1.toKey(), ac_power);
                 query_map.addValueToTarget(SpeedwireData::InverterPowerL2.toKey(), ac_power);
                 query_map.addValueToTarget(SpeedwireData::InverterPowerL3.toKey(), ac_power);
-                loss.measurementValue->value = dc_power.measurementValue->value - ac_power.measurementValue->value;
-                loss.measurementValue->timer = dc_power.measurementValue->timer;
+                loss.measurementValue.value = dc_power.measurementValue.value - ac_power.measurementValue.value;
+                loss.measurementValue.timer = dc_power.measurementValue.timer;
                 loss.time = dc_power.time;
-                efficiency.measurementValue->value = (dc_power.measurementValue->value > 0 ? (ac_power.measurementValue->value / dc_power.measurementValue->value) * 100.0 : 0.0);
-                efficiency.measurementValue->timer = dc_power.measurementValue->timer;
+                efficiency.measurementValue.value = (dc_power.measurementValue.value > 0 ? (ac_power.measurementValue.value / dc_power.measurementValue.value) * 100.0 : 0.0);
+                efficiency.measurementValue.timer = dc_power.measurementValue.timer;
                 efficiency.time = dc_power.time;
                 if (dc_power.time != 0) processor.consume(dc_power);
                 if (ac_power.time != 0) processor.consume(ac_power);
@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
                 producer.flush();
 
                 // enable / disable night mode (it would be better to use dc_voltage, but it is not easily available here)
-                night_mode = (dc_power.time != 0 && dc_power.measurementValue->value == 0);
+                night_mode = (dc_power.time != 0 && dc_power.measurementValue.value == 0);
             }
         }
     }
