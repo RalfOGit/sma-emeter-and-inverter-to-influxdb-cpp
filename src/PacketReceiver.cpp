@@ -60,7 +60,7 @@ void EmeterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct soc
                 }
             }
             // send the obis value to the obis filter before proceeding with then next obis element
-            filter.consume(obis, timer);
+            filter.consume(serial, obis, timer);
         }
         // send the calculated signed power values to the obis filter
         std::array<uint8_t, 12> obis_signed_power_total = ObisData::SignedActivePowerTotal.toByteArray();
@@ -71,10 +71,10 @@ void EmeterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct soc
         SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L1[4], signed_power_l1);
         SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L2[4], signed_power_l2);
         SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L3[4], signed_power_l3);
-        filter.consume(obis_signed_power_total.data(), timer);
-        filter.consume(obis_signed_power_L1.data(), timer);
-        filter.consume(obis_signed_power_L2.data(), timer);
-        filter.consume(obis_signed_power_L3.data(), timer);
+        filter.consume(serial, obis_signed_power_total.data(), timer);
+        filter.consume(serial, obis_signed_power_L1.data(), timer);
+        filter.consume(serial, obis_signed_power_L2.data(), timer);
+        filter.consume(serial, obis_signed_power_L3.data(), timer);
     }
 }
 
@@ -83,7 +83,7 @@ void EmeterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct soc
 /**
  *  Constructor
  */
-InverterPacketReceiver::InverterPacketReceiver(LocalHost& host, SpeedwireCommand& _command, DataProcessor& data_processor, SpeedwireDataMap& map)
+InverterPacketReceiver::InverterPacketReceiver(LocalHost& host, SpeedwireCommand& _command, AveragingProcessor& data_processor, SpeedwireDataMap& map)
   : InverterPacketReceiverBase(host),
     command(_command),
     processor(data_processor),
@@ -164,7 +164,7 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
                 }
                 // assemble raw data from reply packet
                 SpeedwireRawData raw_data = {
-                    token.command,                                                            // use token command, as at least the low byte will differ
+                    (Command)token.command,                                                   // use token command, as at least the low byte will differ
                     (uint32_t)(inverter_packet.getDataUint32(record_offset) & 0x00ffff00),    // register id;
                     (uint8_t)(inverter_packet.getDataUint32(record_offset) & 0x000000ff),     // connector id (mpp #1, mpp #2, ac #1);
                     (uint8_t)(inverter_packet.getDataUint32(record_offset) >> 24),            // unknown type;
@@ -175,12 +175,12 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
                 inverter_packet.getDataUint8Array(record_offset + 8, raw_data.data, raw_data.data_size);
                 //printf("=>     %s\n", token.toString().c_str());
 
-                // convert raw data into pass inverter values to the data processor
+                // convert raw data into inverter values and pass them to the data processor
                 auto iterator = data_map.find(raw_data.toKey());
                 if (iterator != data_map.end()) {
                     iterator->second.consume(raw_data);
                     //iterator->second.print(stdout);
-                    processor.consume(iterator->second);
+                    processor.consume(serial, iterator->second);
                 }
 
                 record_offset += record_length;

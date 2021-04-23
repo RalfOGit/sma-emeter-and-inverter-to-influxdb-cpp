@@ -23,7 +23,7 @@
 #include <SpeedwireReceiveDispatcher.hpp>
 #include <PacketReceiver.hpp>
 #include <ObisFilter.hpp>
-#include <DataProcessor.hpp>
+#include <AveragingProcessor.hpp>
 #include <InfluxDBProducer.hpp>
 
 static Logger logger("main");
@@ -116,8 +116,8 @@ int main(int argc, char **argv) {
     query_map.add(SpeedwireData::InverterRelay);
 
     // configure processing chain
-    InfluxDBProducer producer;
-    DataProcessor processor(60000, producer);
+    InfluxDBProducer producer(discoverer.getDevices());
+    AveragingProcessor processor(60000, producer);
     filter.addConsumer(&processor);
     SpeedwireCommand command(localhost, discoverer.getDevices());
 
@@ -220,11 +220,18 @@ int main(int argc, char **argv) {
                 efficiency.measurementValue.value = (dc_power.measurementValue.value > 0 ? (ac_power.measurementValue.value / dc_power.measurementValue.value) * 100.0 : 0.0);
                 efficiency.measurementValue.timer = dc_power.measurementValue.timer;
                 efficiency.time = dc_power.time;
-                if (dc_power.time != 0) processor.consume(dc_power);
-                if (ac_power.time != 0) processor.consume(ac_power);
-                if (loss.time != 0) processor.consume(loss);
-                if (efficiency.time != 0) processor.consume(efficiency);
+                if (dc_power.time != 0) processor.consume(12345678, dc_power);
+                if (ac_power.time != 0) processor.consume(12345678, ac_power);
+                if (loss.time != 0) processor.consume(12345678, loss);
+                if (efficiency.time != 0) processor.consume(12345678, efficiency);
                 producer.flush();
+
+                // derive value for the total household consumption from inverter and emeter data
+                // house_power = emeter_positive_energy Halol
+                SpeedwireData house_power(SpeedwireData::InverterPowerACTotal); house_power.measurementValue.value = 0.0;
+                query_map.addValueToTarget(SpeedwireData::InverterPowerL1.toKey(), house_power);
+                query_map.addValueToTarget(SpeedwireData::InverterPowerL2.toKey(), house_power);
+                query_map.addValueToTarget(SpeedwireData::InverterPowerL3.toKey(), house_power);
 
                 // enable / disable night mode (it would be better to use dc_voltage, but it is not easily available here)
                 night_mode = (dc_power.time != 0 && dc_power.measurementValue.value == 0);

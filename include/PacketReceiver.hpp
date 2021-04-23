@@ -3,7 +3,7 @@
 
 #include <LocalHost.hpp>
 #include <ObisFilter.hpp>
-#include <DataProcessor.hpp>
+#include <AveragingProcessor.hpp>
 #include <SpeedwireCommand.hpp>
 #include <SpeedwireData.hpp>
 #include <SpeedwireHeader.hpp>
@@ -33,12 +33,12 @@ public:
  */
 class InverterPacketReceiver : public InverterPacketReceiverBase {
 protected:
-    SpeedwireCommand& command;
-    DataProcessor&    processor;
-    SpeedwireDataMap& data_map;
+    SpeedwireCommand&   command;
+    AveragingProcessor& processor;
+    SpeedwireDataMap&   data_map;
 
 public:
-    InverterPacketReceiver(LocalHost& host, SpeedwireCommand& command, DataProcessor& processor, SpeedwireDataMap& data_map);
+    InverterPacketReceiver(LocalHost& host, SpeedwireCommand& command, AveragingProcessor& processor, SpeedwireDataMap& data_map);
     virtual void receive(SpeedwireHeader& packet, struct sockaddr& src);
 };
 

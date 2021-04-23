@@ -2,7 +2,8 @@
 #include <InfluxDBFactory.h>
 
 
-InfluxDBProducer::InfluxDBProducer(void) :
+InfluxDBProducer::InfluxDBProducer(const std::vector<SpeedwireInfo>& device_array) :
+    devices(device_array),
   //influxDB(influxdb::InfluxDBFactory::Get("udp://localhost:8094/?db=test")),
     influxDB(influxdb::InfluxDBFactory::Get("http://localhost:8086/?db=test")),
   //influxDB(influxdb::InfluxDBFactory::Get("http://192.168.178.16:8086/?db=test")),
@@ -18,10 +19,23 @@ void InfluxDBProducer::flush(void) {
 }
 
 
-void InfluxDBProducer::produce(const std::string &device, const MeasurementType &type, const Wire line, const double value) {
+void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementType &type, const Wire line, const double value) {
     fprintf(stderr, "%s  %lf\n", type.getFullName(line).c_str(), value);
 
-    influxPoint.addTag("device", device);
+    for (size_t i = 0; i < devices.size(); ++i) {
+        if (devices[i].serialNumber == serial_number) {
+            if (devices[i].deviceClass == "Emeter") {
+                influxPoint.addTag("device", "meter");
+            }
+            else if (devices[i].deviceClass == "Inverter") {
+                influxPoint.addTag("device", "inverter");
+            }
+        }
+    }
+
+    char serial[32];
+    snprintf(serial, sizeof(serial), "%lu", serial_number);
+    influxPoint.addTag("serial", std::string(serial));
 
     std::string str_direction(toString(type.direction));
     std::string str_quantity(toString(type.quantity));

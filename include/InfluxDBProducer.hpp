@@ -3,23 +3,26 @@
 
 #include <memory>               // for std::unique_ptr
 #include <Measurement.hpp>
-#include <InfluxDB.h>
 #include <Producer.hpp>
+#include <SpeedwireDiscovery.hpp>
+#include <InfluxDB.h>
+
 
 
 class InfluxDBProducer : public Producer {
 
 protected:
+    const std::vector<SpeedwireInfo>& devices;
     std::unique_ptr<influxdb::InfluxDB> influxDB;
     influxdb::Point                     influxPoint;
 
 public:
 
-    InfluxDBProducer(void);
+    InfluxDBProducer(const std::vector<SpeedwireInfo>& devices);
     ~InfluxDBProducer(void);
 
     void flush(void) override;
-    void produce(const std::string &device, const MeasurementType &type, const Wire, const double value) override;
+    void produce(const uint32_t serial_number, const MeasurementType &type, const Wire, const double value) override;
 
 };
 
