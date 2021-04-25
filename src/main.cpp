@@ -11,6 +11,7 @@
 
 #include <LocalHost.hpp>
 #include <AddressConversion.hpp>
+#include <CalculatedValueProcessor.hpp>
 #include <Logger.hpp>
 #include <Measurement.hpp>
 #include <SpeedwireSocketFactory.hpp>
@@ -60,65 +61,70 @@ int main(int argc, char **argv) {
     discoverer.discoverDevices();
 
     // define measurement filters for sma emeter packet filtering
-    ObisFilter filter;
-    filter.addFilter(ObisData::PositiveActivePowerTotal);
-    //filter.addFilter(ObisData::PositiveActivePowerL1);
-    //filter.addFilter(ObisData::PositiveActivePowerL2);
-    //filter.addFilter(ObisData::PositiveActivePowerL3);
-    //filter.addFilter(ObisData::PositiveActiveEnergyTotal);
-    //filter.addFilter(ObisData::PositiveActiveEnergyL1);
-    //filter.addFilter(ObisData::PositiveActiveEnergyL2);
-    //filter.addFilter(ObisData::PositiveActiveEnergyL3);
-    filter.addFilter(ObisData::NegativeActivePowerTotal);
-    //filter.addFilter(ObisData::NegativeActivePowerL1);
-    //filter.addFilter(ObisData::NegativeActivePowerL2);
-    //filter.addFilter(ObisData::NegativeActivePowerL3);
-    //filter.addFilter(ObisData::NegativeActiveEnergyTotal);
-    //filter.addFilter(ObisData::NegativeActiveEnergyL1);
-    //filter.addFilter(ObisData::NegativeActiveEnergyL2); 
-    //filter.addFilter(ObisData::NegativeActiveEnergyL3); 
-    filter.addFilter(ObisData::PowerFactorTotal);
-    filter.addFilter(ObisData::PowerFactorL1);
-    filter.addFilter(ObisData::PowerFactorL2);
-    filter.addFilter(ObisData::PowerFactorL3);
-    //filter.addFilter(ObisData::CurrentL1);
-    //filter.addFilter(ObisData::CurrentL2);
-    //filter.addFilter(ObisData::CurrentL3);
-    //filter.addFilter(ObisData::VoltageL1);
-    //filter.addFilter(ObisData::VoltageL2);
-    //filter.addFilter(ObisData::VoltageL3);
-    filter.addFilter(ObisData::SignedActivePowerTotal);   // calculated value that is not provided by emeter
-    filter.addFilter(ObisData::SignedActivePowerL1);      // calculated value that is not provided by emeter
-    filter.addFilter(ObisData::SignedActivePowerL2);      // calculated value that is not provided by emeter
-    filter.addFilter(ObisData::SignedActivePowerL3);      // calculated value that is not provided by emeter
+    ObisDataMap emeter_map;
+    emeter_map.add(ObisData::PositiveActivePowerTotal);
+    //emeter_map.add(ObisData::PositiveActivePowerL1);
+    //emeter_map.add(ObisData::PositiveActivePowerL2);
+    //emeter_map.add(ObisData::PositiveActivePowerL3);
+    //emeter_map.add(ObisData::PositiveActiveEnergyTotal);
+    //emeter_map.add(ObisData::PositiveActiveEnergyL1);
+    //emeter_map.add(ObisData::PositiveActiveEnergyL2);
+    //emeter_map.add(ObisData::PositiveActiveEnergyL3);
+    emeter_map.add(ObisData::NegativeActivePowerTotal);
+    //emeter_map.add(ObisData::NegativeActivePowerL1);
+    //emeter_map.add(ObisData::NegativeActivePowerL2);
+    //emeter_map.add(ObisData::NegativeActivePowerL3);
+    //emeter_map.add(ObisData::NegativeActiveEnergyTotal);
+    //emeter_map.add(ObisData::NegativeActiveEnergyL1);
+    //emeter_map.add(ObisData::NegativeActiveEnergyL2); 
+    //emeter_map.add(ObisData::NegativeActiveEnergyL3); 
+    emeter_map.add(ObisData::PowerFactorTotal);
+    emeter_map.add(ObisData::PowerFactorL1);
+    emeter_map.add(ObisData::PowerFactorL2);
+    emeter_map.add(ObisData::PowerFactorL3);
+    //emeter_map.add(ObisData::CurrentL1);
+    //emeter_map.add(ObisData::CurrentL2);
+    //emeter_map.add(ObisData::CurrentL3);
+    //emeter_map.add(ObisData::VoltageL1);
+    //emeter_map.add(ObisData::VoltageL2);
+    //emeter_map.add(ObisData::VoltageL3);
+    emeter_map.add(ObisData::SignedActivePowerTotal);   // calculated value that is not provided by emeter
+    emeter_map.add(ObisData::SignedActivePowerL1);      // calculated value that is not provided by emeter
+    emeter_map.add(ObisData::SignedActivePowerL2);      // calculated value that is not provided by emeter
+    emeter_map.add(ObisData::SignedActivePowerL3);      // calculated value that is not provided by emeter
 
     // define measurement elements for sma inverter queries
-    SpeedwireDataMap query_map;
-    query_map.add(SpeedwireData::InverterPowerMPP1);
-    query_map.add(SpeedwireData::InverterPowerMPP2);
-    query_map.add(SpeedwireData::InverterVoltageMPP1);
-    query_map.add(SpeedwireData::InverterVoltageMPP2);
-    query_map.add(SpeedwireData::InverterCurrentMPP1);
-    query_map.add(SpeedwireData::InverterCurrentMPP2);
-    query_map.add(SpeedwireData::InverterPowerL1);
-    query_map.add(SpeedwireData::InverterPowerL2);
-    query_map.add(SpeedwireData::InverterPowerL3);
-    //query_map.add(SpeedwireData::InverterVoltageL1);
-    //query_map.add(SpeedwireData::InverterVoltageL2);
-    //query_map.add(SpeedwireData::InverterVoltageL3);
-    //query_map.add(SpeedwireData::InverterVoltageL1toL2);
-    //query_map.add(SpeedwireData::InverterVoltageL2toL3);
-    //query_map.add(SpeedwireData::InverterVoltageL3toL1);
-    //query_map.add(SpeedwireData::InverterCurrentL1);
-    //query_map.add(SpeedwireData::InverterCurrentL2);
-    //query_map.add(SpeedwireData::InverterCurrentL3);
-    query_map.add(SpeedwireData::InverterStatus);
-    query_map.add(SpeedwireData::InverterRelay);
+    SpeedwireDataMap inverter_map;
+    inverter_map.add(SpeedwireData::InverterPowerMPP1);
+    inverter_map.add(SpeedwireData::InverterPowerMPP2);
+    inverter_map.add(SpeedwireData::InverterVoltageMPP1);
+    inverter_map.add(SpeedwireData::InverterVoltageMPP2);
+    inverter_map.add(SpeedwireData::InverterCurrentMPP1);
+    inverter_map.add(SpeedwireData::InverterCurrentMPP2);
+    inverter_map.add(SpeedwireData::InverterPowerL1);
+    inverter_map.add(SpeedwireData::InverterPowerL2);
+    inverter_map.add(SpeedwireData::InverterPowerL3);
+    //inverter_map.add(SpeedwireData::InverterVoltageL1);
+    //inverter_map.add(SpeedwireData::InverterVoltageL2);
+    //inverter_map.add(SpeedwireData::InverterVoltageL3);
+    //inverter_map.add(SpeedwireData::InverterVoltageL1toL2);
+    //inverter_map.add(SpeedwireData::InverterVoltageL2toL3);
+    //inverter_map.add(SpeedwireData::InverterVoltageL3toL1);
+    //inverter_map.add(SpeedwireData::InverterCurrentL1);
+    //inverter_map.add(SpeedwireData::InverterCurrentL2);
+    //inverter_map.add(SpeedwireData::InverterCurrentL3);
+    inverter_map.add(SpeedwireData::InverterStatus);
+    inverter_map.add(SpeedwireData::InverterRelay);
 
     // configure processing chain
+    ObisFilter filter;
+    filter.addFilter(emeter_map);
     InfluxDBProducer producer(discoverer.getDevices());
-    AveragingProcessor processor(60000, producer);
-    filter.addConsumer(&processor);
+    CalculatedValueProcessor calculator(filter.getFilter(), inverter_map, producer);
+    AveragingProcessor averager(60000);
+    filter.addConsumer(averager);
+    averager.addConsumer((ObisConsumer&)calculator);
+    averager.addConsumer((SpeedwireConsumer&)calculator);
     SpeedwireCommand command(localhost, discoverer.getDevices());
 
     // open socket(s) to receive sma emeter packets from any local interface
@@ -126,7 +132,7 @@ int main(int argc, char **argv) {
 
     // configure packet dispatcher
     EmeterPacketReceiver   emeter_packet_receiver(localhost, filter);
-    InverterPacketReceiver inverter_packet_receiver(localhost, command, processor, query_map);
+    InverterPacketReceiver inverter_packet_receiver(localhost, command, averager, inverter_map);
     SpeedwireReceiveDispatcher dispatcher(localhost);
     dispatcher.registerReceiver(&emeter_packet_receiver);
     dispatcher.registerReceiver(&inverter_packet_receiver);
@@ -194,47 +200,27 @@ int main(int argc, char **argv) {
 
         // dispatch inbound packets
         int npackets = dispatcher.dispatch(sockets, poll_emeter_timeout_in_ms);
-        if (npackets > 0) {
-            producer.flush();
-        }
 
         // wait for inverter to respond with all data before deriving aggregated inverter values
         if (inverter_query == true) {
             if (command.getTokenRepository().size() == 0) {
                 inverter_query = false;
-                logger.print(LogLevel::LOG_INFO_0, "aggregate inverter data time %lu\n", (uint32_t)localhost.getUnixEpochTimeInMs());
+                uint32_t time = (uint32_t)localhost.getUnixEpochTimeInMs();
+                logger.print(LogLevel::LOG_INFO_0, "aggregate inverter data time %lu\n", time);
 
-                // derive values for inverter total dc and ac power, efficiency and power loss; these are not explicitly provided in the query data
-                SpeedwireData dc_power(SpeedwireData::InverterPowerDCTotal);    dc_power.measurementValue.value = 0.0;
-                SpeedwireData ac_power(SpeedwireData::InverterPowerACTotal);    ac_power.measurementValue.value = 0.0;
-                SpeedwireData loss(SpeedwireData::InverterPowerLoss);
-                SpeedwireData efficiency(SpeedwireData::InverterPowerEfficiency);
-                query_map.addValueToTarget(SpeedwireData::InverterPowerMPP1.toKey(), dc_power);
-                query_map.addValueToTarget(SpeedwireData::InverterPowerMPP2.toKey(), dc_power);
-                query_map.addValueToTarget(SpeedwireData::InverterPowerL1.toKey(), ac_power);
-                query_map.addValueToTarget(SpeedwireData::InverterPowerL2.toKey(), ac_power);
-                query_map.addValueToTarget(SpeedwireData::InverterPowerL3.toKey(), ac_power);
-                loss.measurementValue.value = dc_power.measurementValue.value - ac_power.measurementValue.value;
-                loss.measurementValue.timer = dc_power.measurementValue.timer;
-                loss.time = dc_power.time;
-                efficiency.measurementValue.value = (dc_power.measurementValue.value > 0 ? (ac_power.measurementValue.value / dc_power.measurementValue.value) * 100.0 : 0.0);
-                efficiency.measurementValue.timer = dc_power.measurementValue.timer;
-                efficiency.time = dc_power.time;
-                if (dc_power.time != 0) processor.consume(12345678, dc_power);
-                if (ac_power.time != 0) processor.consume(12345678, ac_power);
-                if (loss.time != 0) processor.consume(12345678, loss);
-                if (efficiency.time != 0) processor.consume(12345678, efficiency);
-                producer.flush();
+                // enable / disable night mode based on the dc power on mpp1
+                auto iterator = inverter_map.find(SpeedwireData::InverterPowerMPP1.toKey());
+                if (iterator != inverter_map.end()) {
+                    night_mode = (iterator->second.time != 0 && iterator->second.measurementValue.value == 0);
+                } else {
+                    night_mode = false;
+                }
 
-                // derive value for the total household consumption from inverter and emeter data
-                // house_power = emeter_positive_energy Halol
-                SpeedwireData house_power(SpeedwireData::InverterPowerACTotal); house_power.measurementValue.value = 0.0;
-                query_map.addValueToTarget(SpeedwireData::InverterPowerL1.toKey(), house_power);
-                query_map.addValueToTarget(SpeedwireData::InverterPowerL2.toKey(), house_power);
-                query_map.addValueToTarget(SpeedwireData::InverterPowerL3.toKey(), house_power);
-
-                // enable / disable night mode (it would be better to use dc_voltage, but it is not easily available here)
-                night_mode = (dc_power.time != 0 && dc_power.measurementValue.value == 0);
+                for (auto& device : discoverer.getDevices()) {
+                    if (device.deviceType == "Inverter") {
+                        averager.endOfSpeedwireData(device.serialNumber, time);
+                    }
+                }
             }
         }
     }

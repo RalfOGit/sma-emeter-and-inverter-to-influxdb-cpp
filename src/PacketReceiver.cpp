@@ -16,7 +16,7 @@ static Logger inverter_logger = Logger("InverterPacketReceiver");
  */
 
  /**
-  *  Constructor, std::vector<SpeedwirePacketSender&> &senders, BounceDetector &bounceDetector, PacketPatcher &packetPatcher);
+  *  Constructor.
   */
 EmeterPacketReceiver::EmeterPacketReceiver(LocalHost& host, ObisFilter& obis_filter)
     : EmeterPacketReceiverBase(host),
@@ -38,43 +38,19 @@ void EmeterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct soc
         const SpeedwireEmeterProtocol emeter_packet(speedwire_packet);
         uint16_t susyid = emeter_packet.getSusyID();
         uint32_t serial = emeter_packet.getSerialNumber();
-        uint32_t timer  = emeter_packet.getTime();
-        emeter_logger.print(LogLevel::LOG_INFO_1, "received emeter packet from %s susyid %u serial %lu time %lu\n", AddressConversion::toString(src).c_str(), susyid, serial, timer);
+        uint32_t time   = emeter_packet.getTime();
+        emeter_logger.print(LogLevel::LOG_INFO_1, "received emeter packet from %s susyid %u serial %lu time %lu\n", AddressConversion::toString(src).c_str(), susyid, serial, time);
 
         // extract obis data from the emeter packet and pass each obis data element to the obis filter
         int32_t signed_power_total = 0, signed_power_l1 = 0, signed_power_l2 = 0, signed_power_l3 = 0;
         for (void* obis = emeter_packet.getFirstObisElement(); obis != NULL; obis = emeter_packet.getNextObisElement(obis)) {
             //emeter.printObisElement(obis, stderr);
-            // ugly hack to calculate the signed power value
-            if (SpeedwireEmeterProtocol::getObisType(obis) == 4) {
-                uint32_t value = SpeedwireEmeterProtocol::getObisValue4(obis);
-                switch (SpeedwireEmeterProtocol::getObisIndex(obis)) {
-                case  1: signed_power_total += value;  break;
-                case  2: signed_power_total -= value;  break;
-                case 21: signed_power_l1    += value;  break;
-                case 22: signed_power_l1    -= value;  break;
-                case 41: signed_power_l2    += value;  break;
-                case 42: signed_power_l2    -= value;  break;
-                case 61: signed_power_l3    += value;  break;
-                case 62: signed_power_l3    -= value;  break;
-                }
-            }
             // send the obis value to the obis filter before proceeding with then next obis element
-            filter.consume(serial, obis, timer);
+            filter.consume(serial, obis, time);
         }
-        // send the calculated signed power values to the obis filter
-        std::array<uint8_t, 12> obis_signed_power_total = ObisData::SignedActivePowerTotal.toByteArray();
-        std::array<uint8_t, 12> obis_signed_power_L1    = ObisData::SignedActivePowerL1.toByteArray();
-        std::array<uint8_t, 12> obis_signed_power_L2    = ObisData::SignedActivePowerL2.toByteArray();
-        std::array<uint8_t, 12> obis_signed_power_L3    = ObisData::SignedActivePowerL3.toByteArray();
-        SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_total[4], signed_power_total);
-        SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L1[4], signed_power_l1);
-        SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L2[4], signed_power_l2);
-        SpeedwireByteEncoding::setUint32BigEndian(&obis_signed_power_L3[4], signed_power_l3);
-        filter.consume(serial, obis_signed_power_total.data(), timer);
-        filter.consume(serial, obis_signed_power_L1.data(), timer);
-        filter.consume(serial, obis_signed_power_L2.data(), timer);
-        filter.consume(serial, obis_signed_power_L3.data(), timer);
+
+        // signal end of obis data to the obis filter
+        filter.endOfObisData(serial, time);
     }
 }
 

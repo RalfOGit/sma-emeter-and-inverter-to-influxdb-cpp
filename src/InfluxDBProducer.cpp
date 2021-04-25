@@ -20,15 +20,22 @@ void InfluxDBProducer::flush(void) {
 
 
 void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementType &type, const Wire line, const double value) {
-    fprintf(stderr, "%s  %lf\n", type.getFullName(line).c_str(), value);
 
-    for (size_t i = 0; i < devices.size(); ++i) {
-        if (devices[i].serialNumber == serial_number) {
-            if (devices[i].deviceClass == "Emeter") {
-                influxPoint.addTag("device", "meter");
-            }
-            else if (devices[i].deviceClass == "Inverter") {
-                influxPoint.addTag("device", "inverter");
+    if (serial_number == 0xcafebabe) {
+        fprintf(stderr, "house_%s  %lf\n", type.getFullName(line).c_str(), value);
+        influxPoint.addTag("device", "house");
+    }
+    else {
+        fprintf(stderr, "%s  %lf\n", type.getFullName(line).c_str(), value);
+        for (size_t i = 0; i < devices.size(); ++i) {
+            if (devices[i].serialNumber == serial_number) {
+                if (devices[i].deviceClass == "Emeter") {
+                    influxPoint.addTag("device", "meter"); 
+                }
+                else if (devices[i].deviceClass == "Inverter") {
+                    influxPoint.addTag("device", "inverter"); 
+                }
+                break;
             }
         }
     }
