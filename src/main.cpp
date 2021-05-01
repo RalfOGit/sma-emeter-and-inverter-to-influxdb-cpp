@@ -134,8 +134,8 @@ int main(int argc, char **argv) {
     EmeterPacketReceiver   emeter_packet_receiver(localhost, filter);
     InverterPacketReceiver inverter_packet_receiver(localhost, command, averager, inverter_map);
     SpeedwireReceiveDispatcher dispatcher(localhost);
-    dispatcher.registerReceiver(&emeter_packet_receiver);
-    dispatcher.registerReceiver(&inverter_packet_receiver);
+    dispatcher.registerReceiver(emeter_packet_receiver);
+    dispatcher.registerReceiver(inverter_packet_receiver);
 
     //
     // main loop
