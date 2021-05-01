@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
     SpeedwireCommand command(localhost, discoverer.getDevices());
 
     // open socket(s) to receive sma emeter packets from any local interface
-    const std::vector<SpeedwireSocket> sockets = SpeedwireSocketFactory::getInstance(localhost)->getRecvSockets(SpeedwireSocketFactory::ANYCAST, localhost.getLocalIPv4Addresses());
+    const std::vector<SpeedwireSocket> sockets = SpeedwireSocketFactory::getInstance(localhost)->getRecvSockets(SpeedwireSocketFactory::SocketType::ANYCAST, localhost.getLocalIPv4Addresses());
 
     // configure packet dispatcher
     EmeterPacketReceiver   emeter_packet_receiver(localhost, filter);
