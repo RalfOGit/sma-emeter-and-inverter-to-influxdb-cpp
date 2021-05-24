@@ -18,28 +18,28 @@
  /**
   *  Speedwire packet receiver class for sma emeter packets
   */
-class EmeterPacketReceiver : public EmeterPacketReceiverBase {
+class EmeterPacketReceiver : public libspeedwire::EmeterPacketReceiverBase {
 protected:
-    ObisFilter& filter;
+    libspeedwire::ObisFilter& filter;
 
 public:
-    EmeterPacketReceiver(LocalHost& host, ObisFilter& filter);
-    virtual void receive(SpeedwireHeader& packet, struct sockaddr& src);
+    EmeterPacketReceiver(libspeedwire::LocalHost& host, libspeedwire::ObisFilter& filter);
+    virtual void receive(libspeedwire::SpeedwireHeader& packet, struct sockaddr& src);
 };
 
 
 /**
  *  Speedwire packet receiver class for sma inverter packets
  */
-class InverterPacketReceiver : public InverterPacketReceiverBase {
+class InverterPacketReceiver : public libspeedwire::InverterPacketReceiverBase {
 protected:
-    SpeedwireCommand&   command;
-    AveragingProcessor& processor;
-    SpeedwireDataMap&   data_map;
+    libspeedwire::SpeedwireCommand&   command;
+    libspeedwire::AveragingProcessor& processor;
+    libspeedwire::SpeedwireDataMap&   data_map;
 
 public:
-    InverterPacketReceiver(LocalHost& host, SpeedwireCommand& command, AveragingProcessor& processor, SpeedwireDataMap& data_map);
-    virtual void receive(SpeedwireHeader& packet, struct sockaddr& src);
+    InverterPacketReceiver(libspeedwire::LocalHost& host, libspeedwire::SpeedwireCommand& command, libspeedwire::AveragingProcessor& processor, libspeedwire::SpeedwireDataMap& data_map);
+    virtual void receive(libspeedwire::SpeedwireHeader& packet, struct sockaddr& src);
 };
 
 #endif

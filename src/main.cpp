@@ -26,6 +26,7 @@
 #include <ObisFilter.hpp>
 #include <AveragingProcessor.hpp>
 #include <InfluxDBProducer.hpp>
+using namespace libspeedwire;
 
 static Logger logger("main");
 

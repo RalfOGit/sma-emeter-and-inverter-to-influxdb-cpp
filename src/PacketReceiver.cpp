@@ -6,6 +6,7 @@
 #include <ObisData.hpp>
 #include <Logger.hpp>
 #include <PacketReceiver.hpp>
+using namespace libspeedwire;
 
 static Logger emeter_logger   = Logger("EmeterPacketReceiver");
 static Logger inverter_logger = Logger("InverterPacketReceiver");

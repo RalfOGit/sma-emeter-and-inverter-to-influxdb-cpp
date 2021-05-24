@@ -1,5 +1,6 @@
 #include <InfluxDBProducer.hpp>
 #include <InfluxDBFactory.h>
+using namespace libspeedwire;
 
 
 InfluxDBProducer::InfluxDBProducer(const std::vector<SpeedwireInfo>& device_array) :
