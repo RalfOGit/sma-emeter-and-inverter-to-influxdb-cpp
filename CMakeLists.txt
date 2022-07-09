@@ -1,8 +1,14 @@
-project(emeter-grabber)
-
 cmake_minimum_required(VERSION 3.10)
 
+project(emeter-grabber
+  VERSION 0.1.0
+  DESCRIPTION "SMA-Emeter to InfluxDB"
+  LANGUAGES CXX)
+
 set(CMAKE_CXX_STANDARD 17)
+
+set(USE_CURL OFF CACHE BOOL "Enable curl dependency")
+set(USE_BOOST OFF CACHE BOOL "Enable boost dependency")
 
 # This CMake configuration assumes the following directory layout
 #
@@ -12,7 +18,7 @@ set(CMAKE_CXX_STANDARD 17)
 # - libcurl (windows only; for linux it is installed in /usr/lib64)
 #   - include
 #   - lib
-# - influxdb-cxx
+# - influxdb-cxx-fork
 #   - include
 #   - lib
 #   - <relative install path>
@@ -41,12 +47,10 @@ endif()
 find_package(CURL REQUIRED MODULE)
 
 # path definitions for InfluxDB (adapt to your needs)
-set(INFLUX_PROJECT_DIR "${CMAKE_SOURCE_DIR}/../influxdb-cxx")
-set(INFLUX_INSTALL_DIR "${INFLUX_PROJECT_DIR}/${RELATIVE_INSTALL_PATH}")
-set(INFLUX_INCLUDE_DIR "${INFLUX_INSTALL_DIR}/include")
-set(INFLUX_LIBRARY_DIR "${INFLUX_INSTALL_DIR}/lib")
-#set(InfluxDB_DIR       "${INFLUX_INSTALL_DIR}/lib/cmake/InfluxDB/")
-#find_package(InfluxDB)
+set(INFLUX_DIR         "${CMAKE_SOURCE_DIR}/influxdb-cxx-fork")
+set(INFLUX_INCLUDE_DIR "${INFLUX_DIR}/include")
+set(INFLUX_LIBRARY_DIR "${CMAKE_SOURCE_DIR}/${RELATIVE_BUILD_PATH}/lib")
+add_subdirectory(influxdb-cxx-fork EXCLUDE_FROM_ALL)
 
 # path definitions for libspeedwire (adapt to your needs)
 set(SPEEDWIRE_DIR         "${CMAKE_SOURCE_DIR}/libspeedwire")
@@ -67,12 +71,17 @@ include_directories(${PROJECT_INCLUDE_DIR} ${SPEEDWIRE_INCLUDE_DIR} ${INFLUX_INC
 link_directories(${SPEEDWIRE_LIBRARY_DIR} ${INFLUX_LIBRARY_DIR} ${CURL_LIBRARY_DIR})
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
-add_dependencies(${PROJECT_NAME} speedwire)
+add_dependencies(${PROJECT_NAME} speedwire InfluxDB)
+
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIR} ${SPEEDWIRE_INCLUDE_DIR} ${INFLUX_INCLUDE_DIR})
+target_include_directories(speedwire PUBLIC ${SPEEDWIRE_INCLUDE_DIR})
+#target_include_directories(InfluxDB PUBLIC ${INFLUX_INCLUDE_DIR})
 
 if (MSVC)
-target_link_libraries(${PROJECT_NAME} speedwire.lib InfluxDB.lib ${CURL_LIBRARY} ws2_32.lib Iphlpapi.lib)
+#target_link_libraries(${PROJECT_NAME} speedwire InfluxDB ${CURL_LIBRARY} ws2_32.lib Iphlpapi.lib)
+target_link_libraries(${PROJECT_NAME} speedwire InfluxDB ws2_32.lib Iphlpapi.lib)
 else()
-target_link_libraries(${PROJECT_NAME} libspeedwire.a libInfluxDB.so)
+target_link_libraries(${PROJECT_NAME} speedwire InfluxDB)
 endif()
 
 set_target_properties(${PROJECT_NAME}
