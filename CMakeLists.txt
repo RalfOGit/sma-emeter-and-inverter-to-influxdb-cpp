@@ -28,22 +28,11 @@ message("CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE}")
 message("CMAKE_BINARY_DIR ${CMAKE_BINARY_DIR}")
 message("CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}")
 
-string(REPLACE "${CMAKE_SOURCE_DIR}/" "" RELATIVE_BUILD_PATH "${CMAKE_BINARY_DIR}")
-message("RELATIVE_BUILD_PATH ${RELATIVE_BUILD_PATH}")
-string(REPLACE "${CMAKE_SOURCE_DIR}/" "" RELATIVE_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}")
-message("RELATIVE_INSTALL_PATH ${RELATIVE_INSTALL_PATH}")
-
 # path definitions for InfluxDB (adapt to your needs)
-set(INFLUX_DIR         "${CMAKE_SOURCE_DIR}/influxdb-cxx-fork")
-set(INFLUX_INCLUDE_DIR "${INFLUX_DIR}/include")
-set(INFLUX_LIBRARY_DIR "${CMAKE_SOURCE_DIR}/${RELATIVE_BUILD_PATH}/lib")
 add_subdirectory(influxdb-cxx-fork EXCLUDE_FROM_ALL)
 
 # path definitions for libspeedwire (adapt to your needs)
-set(SPEEDWIRE_DIR         "${CMAKE_SOURCE_DIR}/libspeedwire")
-set(SPEEDWIRE_INCLUDE_DIR "${SPEEDWIRE_DIR}/include")
-set(SPEEDWIRE_LIBRARY_DIR "${CMAKE_SOURCE_DIR}/${RELATIVE_BUILD_PATH}/libspeedwire")
-add_subdirectory("libspeedwire")
+add_subdirectory(libspeedwire EXCLUDE_FROM_ALL)
 
 # project sources and include path
 set(PROJECT_SOURCES
@@ -57,9 +46,7 @@ set(PROJECT_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 add_dependencies(${PROJECT_NAME} speedwire InfluxDB)
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIR} ${SPEEDWIRE_INCLUDE_DIR} ${INFLUX_INCLUDE_DIR})
-target_include_directories(speedwire PUBLIC ${SPEEDWIRE_INCLUDE_DIR})
-#target_include_directories(InfluxDB PUBLIC ${INFLUX_INCLUDE_DIR})
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIR} speedwire InfluxDB)
 
 if (MSVC)
 target_link_libraries(${PROJECT_NAME} speedwire InfluxDB ws2_32.lib Iphlpapi.lib)
