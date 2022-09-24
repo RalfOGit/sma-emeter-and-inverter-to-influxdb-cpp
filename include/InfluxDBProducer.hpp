@@ -22,7 +22,7 @@ public:
     ~InfluxDBProducer(void);
 
     void flush(void) override;
-    void produce(const uint32_t serial_number, const libspeedwire::MeasurementType &type, const libspeedwire::Wire, const double value) override;
+    void produce(const uint32_t serial_number, const libspeedwire::MeasurementType &type, const libspeedwire::Wire, const double value, const uint32_t time_in_ms = 0) override;
 
 };
 

@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
     filter.addFilter(emeter_map);
     InfluxDBProducer producer(discoverer.getDevices());
     CalculatedValueProcessor calculator(filter.getFilter(), inverter_map, producer);
-    AveragingProcessor averager(60000);
+    AveragingProcessor averager(60000, 0);
     filter.addConsumer(averager);
     averager.addConsumer((ObisConsumer&)calculator);
     averager.addConsumer((SpeedwireConsumer&)calculator);
