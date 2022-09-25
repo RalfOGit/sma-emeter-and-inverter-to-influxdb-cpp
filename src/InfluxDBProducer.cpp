@@ -3,6 +3,11 @@
 #include <SpeedwireTime.hpp>
 using namespace libspeedwire;
 
+#define PRINT_STYLE_NONE (0)
+#define PRINT_STYLE_SHORT (1)
+#define PRINT_STYLE_LINEPROTOCOL (2)
+#define PRINT_STYLE PRINT_STYLE_SHORT
+
 
 InfluxDBProducer::InfluxDBProducer(const std::vector<SpeedwireInfo>& device_array) :
     devices(device_array),
@@ -21,32 +26,37 @@ void InfluxDBProducer::flush(void) {
 }
 
 
-void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementType &type, const Wire line, const double value, const uint32_t time_in_ms) {
+void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementType &type, const Wire line, const double value, const uint32_t time) {
     uint64_t sma_time_in_ms = 0;
 
     if (serial_number == 0xcafebabe) {
-        fprintf(stderr, "house_%s  %lf\n", type.getFullName(line).c_str(), value);
         influxPoint.addTag("device", "house");
+        sma_time_in_ms = SpeedwireTime::convertEmeterTimeToUnixEpochTime(time);
+#if PRINT_STYLE == PRINT_STYLE_SHORT
+        fprintf(stderr, "%llu  house_%-16s  %lf\n", sma_time_in_ms, type.getFullName(line).c_str(), value);
+#endif
     }
     else {
-        fprintf(stderr, "%s  %lf\n", type.getFullName(line).c_str(), value);
         for (size_t i = 0; i < devices.size(); ++i) {
             if (devices[i].serialNumber == serial_number) {
                 if (devices[i].deviceClass == "Emeter") {
                     influxPoint.addTag("device", "meter");
-                    if (time_in_ms != 0) {
-                        sma_time_in_ms = SpeedwireTime::convertEmeterTimeToUnixEpochTime(time_in_ms);
+                    if (time != 0) {
+                        sma_time_in_ms = SpeedwireTime::convertEmeterTimeToUnixEpochTime(time);
                     }
                 }
                 else if (devices[i].deviceClass == "Inverter") {
                     influxPoint.addTag("device", "inverter"); 
-                    if (time_in_ms != 0) {
-                        sma_time_in_ms = SpeedwireTime::convertInverterTimeToUnixEpochTime(time_in_ms);
+                    if (time != 0) {
+                        sma_time_in_ms = SpeedwireTime::convertInverterTimeToUnixEpochTime(time);
                     }
                 }
                 break;
             }
         }
+#if PRINT_STYLE == PRINT_STYLE_SHORT
+        fprintf(stderr, "%llu  %-22s  %lf\n", sma_time_in_ms, type.getFullName(line).c_str(), value);
+#endif
     }
     char serial[32];
     snprintf(serial, sizeof(serial), "%lu", serial_number);
@@ -81,5 +91,11 @@ void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementTy
 
     std::string name = influxPoint.getName();
     influxDB.get()->write(std::move(influxPoint));
+
+#if PRINT_STYLE == PRINT_STYLE_LINEPROTOCOL
+    std::string influx_protocol = influxPoint.toLineProtocol();
+    fprintf(stderr, "%s  %llu\n", influx_protocol.substr(0, influx_protocol.length()-6).c_str(), LocalHost::getUnixEpochTimeInMs());  // cut off the ns part and just display ms.
+#endif
+
     influxPoint = influxdb::Point(name);
 }
