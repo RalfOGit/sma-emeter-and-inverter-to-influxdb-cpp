@@ -2,11 +2,20 @@
 #include <InfluxDBFactory.h>
 #include <SpeedwireTime.hpp>
 using namespace libspeedwire;
+using namespace std::chrono;
 
 #define PRINT_STYLE_NONE (0)
 #define PRINT_STYLE_SHORT (1)
 #define PRINT_STYLE_LINEPROTOCOL (2)
 #define PRINT_STYLE PRINT_STYLE_SHORT
+
+typedef struct {
+    uint32_t sma_time;
+    system_clock::time_point system_time;
+} TimeMapping;
+
+static TimeMapping lastEmeterTime = { 0 };
+static TimeMapping lastInverterTime = { 0 };
 
 
 InfluxDBProducer::InfluxDBProducer(const std::vector<SpeedwireInfo>& device_array) :
@@ -27,13 +36,20 @@ void InfluxDBProducer::flush(void) {
 
 
 void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementType &type, const Wire line, const double value, const uint32_t time) {
-    uint64_t sma_time_in_ms = 0;
+    system_clock::time_point system_time(system_clock::duration::zero());   // initialize to 0
 
     if (serial_number == 0xcafebabe) {
         influxPoint.addTag("device", "house");
-        sma_time_in_ms = SpeedwireTime::convertEmeterTimeToUnixEpochTime(time);
+        if (time != 0) {
+            if (lastEmeterTime.sma_time != time) {
+                lastEmeterTime.sma_time = time;
+                milliseconds millis(SpeedwireTime::convertEmeterTimeToUnixEpochTime(time));
+                lastEmeterTime.system_time = system_clock::time_point(duration_cast<system_clock::duration>(millis));
+            }
+            system_time = lastEmeterTime.system_time;
+        }
 #if PRINT_STYLE == PRINT_STYLE_SHORT
-        fprintf(stderr, "%llu  house_%-16s  %lf\n", sma_time_in_ms, type.getFullName(line).c_str(), value);
+        fprintf(stderr, "%llu  house_%-16s  %lf\n", system_time.time_since_epoch().count(), type.getFullName(line).c_str(), value);
 #endif
     }
     else {
@@ -42,20 +58,30 @@ void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementTy
                 if (devices[i].deviceClass == "Emeter") {
                     influxPoint.addTag("device", "meter");
                     if (time != 0) {
-                        sma_time_in_ms = SpeedwireTime::convertEmeterTimeToUnixEpochTime(time);
+                        if (lastEmeterTime.sma_time != time) {
+                            lastEmeterTime.sma_time = time;
+                            milliseconds millis(SpeedwireTime::convertEmeterTimeToUnixEpochTime(time));
+                            lastEmeterTime.system_time = system_clock::time_point(duration_cast<system_clock::duration>(millis));
+                        }
+                        system_time = lastEmeterTime.system_time;
                     }
                 }
                 else if (devices[i].deviceClass == "Inverter") {
                     influxPoint.addTag("device", "inverter"); 
                     if (time != 0) {
-                        sma_time_in_ms = SpeedwireTime::convertInverterTimeToUnixEpochTime(time);
+                        if (lastInverterTime.sma_time != time) {
+                            lastInverterTime.sma_time = time;
+                            milliseconds millis(SpeedwireTime::convertInverterTimeToUnixEpochTime(time));
+                            lastInverterTime.system_time = system_clock::time_point(duration_cast<system_clock::duration>(millis));
+                        }
+                        system_time = lastInverterTime.system_time;
                     }
                 }
                 break;
             }
         }
 #if PRINT_STYLE == PRINT_STYLE_SHORT
-        fprintf(stderr, "%llu  %-22s  %lf\n", sma_time_in_ms, type.getFullName(line).c_str(), value);
+        fprintf(stderr, "%llu  %-22s  %lf\n", system_time.time_since_epoch().count(), type.getFullName(line).c_str(), value);
 #endif
     }
     char serial[32];
@@ -81,12 +107,9 @@ void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementTy
 
     influxPoint = influxPoint.addField("value", value);
 
-    // if a measurement timestamp is given, try to use it for the InfluxDB timestamp
-    if (sma_time_in_ms != 0) {
-        std::chrono::milliseconds millis(sma_time_in_ms);
-        std::chrono::system_clock::duration duration = std::chrono::duration_cast<std::chrono::system_clock::duration>(millis);
-        std::chrono::time_point<std::chrono::system_clock> system_clock_timepoint(duration);
-        influxPoint.setTimestamp(system_clock_timepoint);
+    // if a measurement timestamp is given, use it as InfluxDB timestamp
+    if (system_time.time_since_epoch().count() != 0) {
+        influxPoint.setTimestamp(system_time);
     }
 
     std::string name = influxPoint.getName();
