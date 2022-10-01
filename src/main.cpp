@@ -118,11 +118,21 @@ int main(int argc, char **argv) {
     inverter_map.add(SpeedwireData::InverterRelay);
 
     // configure processing chain
+    const unsigned long averagingTimeObisData = 60000;
+    const unsigned long averagingTimeSpeedwireData = 0;
+
+    for (auto& entry : emeter_map) {
+        entry.second.measurementValues.setMaximumNumberOfMeasurements(averagingTimeObisData / 1000);
+    }
+    for (auto& entry : inverter_map) {
+        entry.second.measurementValues.setMaximumNumberOfMeasurements(1);
+    }
+
     ObisFilter filter;
     filter.addFilter(emeter_map);
     InfluxDBProducer producer(discoverer.getDevices());
     CalculatedValueProcessor calculator(filter.getFilter(), inverter_map, producer);
-    AveragingProcessor averager(60000, 0);
+    AveragingProcessor averager(averagingTimeObisData, averagingTimeSpeedwireData);
     filter.addConsumer(averager);
     averager.addConsumer((ObisConsumer&)calculator);
     averager.addConsumer((SpeedwireConsumer&)calculator);
@@ -212,7 +222,7 @@ int main(int argc, char **argv) {
                 // enable / disable night mode based on the dc power on mpp1
                 auto iterator = inverter_map.find(SpeedwireData::InverterPowerMPP1.toKey());
                 if (iterator != inverter_map.end()) {
-                    night_mode = (iterator->second.time != 0 && iterator->second.measurementValue.value == 0);
+                    night_mode = (iterator->second.time != 0 && iterator->second.measurementValues.getMostRecentMeasurement().value == 0);
                 } else {
                     night_mode = false;
                 }
