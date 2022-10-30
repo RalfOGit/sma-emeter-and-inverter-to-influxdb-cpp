@@ -122,10 +122,10 @@ int main(int argc, char **argv) {
     const unsigned long averagingTimeSpeedwireData = 0;
 
     for (auto& entry : emeter_map) {
-        entry.second.measurementValues.setMaximumNumberOfMeasurements(averagingTimeObisData / 1000);
+        entry.second.measurementValues.setMaximumNumberOfElements(averagingTimeObisData / 1000);
     }
     for (auto& entry : inverter_map) {
-        entry.second.measurementValues.setMaximumNumberOfMeasurements(1);
+        entry.second.measurementValues.setMaximumNumberOfElements(1);
     }
 
     ObisFilter filter;
@@ -222,7 +222,7 @@ int main(int argc, char **argv) {
                 // enable / disable night mode based on the dc power on mpp1
                 auto iterator = inverter_map.find(SpeedwireData::InverterPowerMPP1.toKey());
                 if (iterator != inverter_map.end()) {
-                    night_mode = (iterator->second.time != 0 && iterator->second.measurementValues.getMostRecentMeasurement().value == 0);
+                    night_mode = (iterator->second.time != 0 && iterator->second.measurementValues.getNewestElement().value == 0);
                 } else {
                     night_mode = false;
                 }
