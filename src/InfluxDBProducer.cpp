@@ -38,6 +38,7 @@ void InfluxDBProducer::flush(void) {
 void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementType &type, const Wire line, const double value, const uint32_t time) {
     system_clock::time_point system_time(system_clock::duration::zero());   // initialize to 0
 
+    // fake serial number for household consumption measurements
     if (serial_number == 0xcafebabe) {
         influxPoint.addTag("device", "house");
         if (time != 0) {
@@ -52,6 +53,18 @@ void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementTy
         fprintf(stderr, "%llu  house_%-16s  %lf\n", system_time.time_since_epoch().count(), type.getFullName(line).c_str(), value);
 #endif
     }
+    // fake serial number for experimental emeter measurements
+    else if (serial_number == 1234567890) {
+        influxPoint.addTag("device", "meter");
+        if (time != 0) {
+            milliseconds millis(SpeedwireTime::convertEmeterTimeToUnixEpochTime(time));
+            system_time = system_clock::time_point(duration_cast<system_clock::duration>(millis));
+        }
+#if PRINT_STYLE == PRINT_STYLE_SHORT || 1
+        fprintf(stderr, "%llu  experimental_%-16s  %lf\n", system_time.time_since_epoch().count(), type.getFullName(line).c_str(), value);
+#endif
+    }
+    // determine device type by its serial number
     else {
         for (size_t i = 0; i < devices.size(); ++i) {
             if (devices[i].serialNumber == serial_number) {
