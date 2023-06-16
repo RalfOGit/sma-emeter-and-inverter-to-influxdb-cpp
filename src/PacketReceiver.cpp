@@ -122,45 +122,17 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
         }
 
         // parse reply packet (this path is not taken for login replies)
-        const int speedwire_header_length = speedwire_packet.getPayloadOffset();
-        const int inverter_header_length  = 8 + 8 + 6 + 4 + 4 + 4;
-        if (length > (speedwire_header_length + inverter_header_length + 4 + 8)) {
-            uint32_t reply_command  = inverter_packet.getCommandID();
-            uint32_t reply_first    = inverter_packet.getFirstRegisterID();
-            uint32_t reply_last     = inverter_packet.getLastRegisterID();
-            uint32_t payload_length = speedwire_packet.getLength() - inverter_header_length - 4 /*trailer*/;
-            uint32_t record_length  = payload_length / (reply_last - reply_first + 1);
-            uint32_t record_offset  = 0;
-            //printf("=>     command %08lx first 0x%08lx last 0x%08lx rec_len %d\n", reply_command, reply_first, reply_last, record_length);
+        std::vector<SpeedwireRawData> raw_data_vector = inverter_packet.getRawDataElements();
+        //printf("%s\n", inverter_packet.toString().c_str());
 
-            // loop across all register ids in the reply packet
-            for (uint32_t record = reply_first; record <= reply_last; ++record) {
-                if ((record_offset + record_length) > payload_length) {
-                    inverter_logger.print(LogLevel::LOG_ERROR, "payload error");
-                    return;
-                }
-                // assemble raw data from reply packet
-                SpeedwireRawData raw_data = {
-                    (Command)token.command,                                                   // use token command, as at least the low byte will differ
-                    (uint32_t)(inverter_packet.getDataUint32(record_offset) & 0x00ffff00),    // register id;
-                    (uint8_t)(inverter_packet.getDataUint32(record_offset) & 0x000000ff),     // connector id (mpp #1, mpp #2, ac #1);
-                    (uint8_t)(inverter_packet.getDataUint32(record_offset) >> 24),            // unknown type;
-                    inverter_packet.getDataUint32(record_offset + 4),                         // time;
-                    NULL,
-                    (record_length - 8 < sizeof(SpeedwireRawData::data) ? record_length - 8 : sizeof(SpeedwireRawData::data))
-                };
-                inverter_packet.getDataUint8Array(record_offset + 8, raw_data.data, raw_data.data_size);
-                //printf("=>     %s\n", token.toString().c_str());
-
-                // convert raw data into inverter values and pass them to the data processor
-                auto iterator = data_map.find(raw_data.toKey());
-                if (iterator != data_map.end()) {
-                    iterator->second.consume(raw_data);
-                    //iterator->second.print(stdout);
-                    processor.consume(serial, iterator->second);
-                }
-
-                record_offset += record_length;
+        // convert raw data into inverter values and pass them to the data processor
+        for (auto &raw_data : raw_data_vector) {
+            raw_data.command = (Command)token.command;
+            auto iterator = data_map.find(raw_data.toKey());
+            if (iterator != data_map.end()) {
+                iterator->second.consume(raw_data);
+                //iterator->second.print(stdout);
+                processor.consume(serial, iterator->second);
             }
         }
 
