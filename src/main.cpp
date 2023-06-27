@@ -166,12 +166,13 @@ int main(int argc, char **argv) {
         if (command.getTokenRepository().needs_login == true) {
             command.getTokenRepository().needs_login = false;
             for (auto& device : discoverer.getDevices()) {
-                if (device.deviceType == "Inverter") {
+                if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter") {
                     logger.print(LogLevel::LOG_INFO_0, "login to inverter - susyid %u serial %lu time 0x%016llx", device.susyID, device.serialNumber, localhost.getUnixEpochTimeInMs());
                     command.logoff(device);
                     command.login(device, true, "9999");
                     int npackets = dispatcher.dispatch(sockets, poll_emeter_timeout_in_ms);
                     start_time = localhost.getTickCountInMs() - query_inverter_interval_in_ms - 1;
+                    //command.queryDeviceType(device);
                 }
             }
         }
@@ -186,12 +187,12 @@ int main(int argc, char **argv) {
 
             // query all inverter devices
             for (auto& device : discoverer.getDevices()) {
-                if (device.deviceType == "Inverter") {
+                if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter") {
                     // query inverter for status and energy production data
                     logger.print(LogLevel::LOG_INFO_0, "query inverter  time %lu\n", (uint32_t)localhost.getUnixEpochTimeInMs());
 
-                 // int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF);    // query software version
-                 // int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00821E00, 0x008220FF);    // query device type
+                  //int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF);    // query software version
+                  //int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00821E00, 0x008220FF);    // query device type
                     int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,     0x00251E00, 0x00251EFF);    // query dc power
                     int32_t return_code_4 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,     0x00451F00, 0x004521FF);    // query dc voltage and current
                     int32_t return_code_5 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00464000, 0x004642FF);    // query ac power
@@ -201,7 +202,7 @@ int main(int argc, char **argv) {
                     //unsigned char buffer[2048];
                     //int32_t return_code_3 = command.query(device, Command::COMMAND_DC_QUERY,     0x00251E00, 0x00251EFF, buffer, sizeof(buffer));    // query dc power
                     //int32_t return_code_4 = command.query(device, Command::COMMAND_DC_QUERY,     0x00451F00, 0x004521FF, buffer, sizeof(buffer));    // query dc voltage and current
-                    //int32_t return_code_5 = command.query(device, Command::COMMAND_AC_QUERY,     0x00464000, 0x004642FF, buffer, sizeof(buffer));    // query ac power
+                    //int32_t return_code_5 = command.query(device, Command::COMMAND_AC_QUERY,     0x00263F00, 0x004642FF, buffer, sizeof(buffer));    // query ac power
                     //int32_t return_code_7 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00214800, 0x002148FF, buffer, sizeof(buffer));    // query device status
                     //int32_t return_code_8 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF, buffer, sizeof(buffer));    // query grid relay status
                     inverter_query = true;
@@ -228,7 +229,7 @@ int main(int argc, char **argv) {
                 }
 
                 for (auto& device : discoverer.getDevices()) {
-                    if (device.deviceType == "Inverter") {
+                    if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter") {
                         averager.endOfSpeedwireData(device.serialNumber, time);
                     }
                 }

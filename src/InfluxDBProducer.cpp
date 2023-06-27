@@ -21,8 +21,8 @@ static TimeMapping lastInverterTime = { 0 };
 InfluxDBProducer::InfluxDBProducer(const std::vector<SpeedwireInfo>& device_array) :
     devices(device_array),
   //influxDB(influxdb::InfluxDBFactory::Get("udp://localhost:8094/?db=test")),
-    influxDB(influxdb::InfluxDBFactory::Get("http://localhost:8086/?db=test")),
-  //influxDB(influxdb::InfluxDBFactory::Get("http://192.168.178.16:8086/?db=test")),
+  influxDB(influxdb::InfluxDBFactory::Get("http://localhost:8086/?db=test")),
+  //  influxDB(influxdb::InfluxDBFactory::Get("http://192.168.178.16:8086/?db=test")),
     influxPoint("sma_emeter") {
     influxDB->batchOf(100);
 }
@@ -60,7 +60,7 @@ void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementTy
             milliseconds millis(SpeedwireTime::convertEmeterTimeToUnixEpochTime(time));
             system_time = system_clock::time_point(duration_cast<system_clock::duration>(millis));
         }
-#if PRINT_STYLE == PRINT_STYLE_SHORT || 1
+#if PRINT_STYLE == PRINT_STYLE_SHORT
         fprintf(stderr, "%llu  experimental_%-16s  %lf\n", system_time.time_since_epoch().count(), type.getFullName(line).c_str(), value);
 #endif
     }
@@ -79,7 +79,7 @@ void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementTy
                         system_time = lastEmeterTime.system_time;
                     }
                 }
-                else if (devices[i].deviceClass == "Inverter") {
+                else if (devices[i].deviceClass == "Inverter" || devices[i].deviceClass == "PV-Inverter") {
                     influxPoint.addTag("device", "inverter"); 
                     if (time != 0) {
                         if (lastInverterTime.sma_time != time) {
