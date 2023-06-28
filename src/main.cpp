@@ -60,6 +60,16 @@ int main(int argc, char **argv) {
     SpeedwireDiscovery discoverer(localhost);
     discoverer.preRegisterDevice("192.168.182.18");
     discoverer.discoverDevices();
+    bool devices_found = false;
+    for (auto& device : discoverer.getDevices()) {
+        if (device.isFullyRegistered()) {
+            devices_found = true;
+        }
+    }
+    if (devices_found == false) {
+        logger.print(LogLevel::LOG_ERROR, "no speedwire device found\n");
+        return 0;
+    }
 
     // define measurement filters for sma emeter packet filtering
     ObisDataMap emeter_map;
