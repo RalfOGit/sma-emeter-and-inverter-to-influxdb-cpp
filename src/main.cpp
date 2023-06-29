@@ -57,18 +57,13 @@ int main(int argc, char **argv) {
 
     // discover sma devices on the local network
     LocalHost& localhost = LocalHost::getInstance();
+    logger.print(LogLevel::LOG_INFO_0, "starting device discovery ...\n");
     SpeedwireDiscovery discoverer(localhost);
     discoverer.preRegisterDevice("192.168.182.18");
-    discoverer.discoverDevices();
-    bool devices_found = false;
-    for (auto& device : discoverer.getDevices()) {
-        if (device.isFullyRegistered()) {
-            devices_found = true;
-        }
-    }
-    if (devices_found == false) {
-        logger.print(LogLevel::LOG_ERROR, "no speedwire device found\n");
-        return 0;
+    int num_devices = discoverer.discoverDevices();
+    logger.print(LogLevel::LOG_INFO_0, "... finished device discovery\n");
+    if (num_devices == 0) {
+        logger.print(LogLevel::LOG_WARNING, "... no speedwire device found\n");
     }
 
     // define measurement filters for sma emeter packet filtering
@@ -201,7 +196,7 @@ int main(int argc, char **argv) {
                     // query inverter for status and energy production data
                     logger.print(LogLevel::LOG_INFO_0, "query inverter  time %lu\n", (uint32_t)localhost.getUnixEpochTimeInMs());
 
-                  //int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF);    // query software version
+                    //int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF);    // query software version
                   //int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00821E00, 0x008220FF);    // query device type
                     int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,     0x00251E00, 0x00251EFF);    // query dc power
                     int32_t return_code_4 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,     0x00451F00, 0x004521FF);    // query dc voltage and current
