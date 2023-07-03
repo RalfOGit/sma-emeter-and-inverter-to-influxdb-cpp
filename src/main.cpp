@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
     //inverter_map.add(SpeedwireData::InverterCurrentL1);
     //inverter_map.add(SpeedwireData::InverterCurrentL2);
     //inverter_map.add(SpeedwireData::InverterCurrentL3);
-    inverter_map.add(SpeedwireData::InverterStatus);
+    inverter_map.add(SpeedwireData::InverterOperationStatus);
     inverter_map.add(SpeedwireData::InverterRelay);
 
     // configure processing chain
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
                     // query inverter for status and energy production data
                     logger.print(LogLevel::LOG_INFO_0, "query inverter  time %lu\n", (uint32_t)localhost.getUnixEpochTimeInMs());
 
-                    //int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF);    // query software version
+                  //int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF);    // query software version
                   //int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00821E00, 0x008220FF);    // query device type
                     int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,     0x00251E00, 0x00251EFF);    // query dc power
                     int32_t return_code_4 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,     0x00451F00, 0x004521FF);    // query dc voltage and current
