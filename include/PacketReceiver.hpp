@@ -6,6 +6,7 @@
 #include <AveragingProcessor.hpp>
 #include <SpeedwireCommand.hpp>
 #include <SpeedwireData.hpp>
+#include <SpeedwireDevice.hpp>
 #include <SpeedwireHeader.hpp>
 #include <SpeedwireReceiveDispatcher.hpp>
 
@@ -20,10 +21,11 @@
   */
 class EmeterPacketReceiver : public libspeedwire::EmeterPacketReceiverBase {
 protected:
+    const std::vector<libspeedwire::SpeedwireDevice>& devices;
     libspeedwire::ObisFilter& filter;
 
 public:
-    EmeterPacketReceiver(libspeedwire::LocalHost& host, libspeedwire::ObisFilter& filter);
+    EmeterPacketReceiver(libspeedwire::LocalHost& host, const std::vector<libspeedwire::SpeedwireDevice>& devices, libspeedwire::ObisFilter& filter);
     virtual void receive(libspeedwire::SpeedwireHeader& packet, struct sockaddr& src);
 };
 
@@ -33,12 +35,13 @@ public:
  */
 class InverterPacketReceiver : public libspeedwire::InverterPacketReceiverBase {
 protected:
+    const std::vector<libspeedwire::SpeedwireDevice>& devices;
     libspeedwire::SpeedwireCommand&   command;
     libspeedwire::AveragingProcessor& processor;
     libspeedwire::SpeedwireDataMap&   data_map;
 
 public:
-    InverterPacketReceiver(libspeedwire::LocalHost& host, libspeedwire::SpeedwireCommand& command, libspeedwire::AveragingProcessor& processor, libspeedwire::SpeedwireDataMap& data_map);
+    InverterPacketReceiver(libspeedwire::LocalHost& host, const std::vector<libspeedwire::SpeedwireDevice>& devices, libspeedwire::SpeedwireCommand& command, libspeedwire::AveragingProcessor& processor, libspeedwire::SpeedwireDataMap& data_map);
     virtual void receive(libspeedwire::SpeedwireHeader& packet, struct sockaddr& src);
 };
 

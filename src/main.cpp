@@ -17,6 +17,7 @@
 #include <SpeedwireSocketFactory.hpp>
 #include <SpeedwireSocketSimple.hpp>
 #include <SpeedwireByteEncoding.hpp>
+#include <SpeedwireDevice.hpp>
 #include <SpeedwireHeader.hpp>
 #include <SpeedwireEmeterProtocol.hpp>
 #include <SpeedwireCommand.hpp>
@@ -121,6 +122,11 @@ int main(int argc, char **argv) {
     //inverter_map.add(SpeedwireData::InverterCurrentL3);
     inverter_map.add(SpeedwireData::InverterOperationStatus);
     inverter_map.add(SpeedwireData::InverterRelay);
+    inverter_map.add(SpeedwireData::BatteryStateOfCharge);
+    inverter_map.add(SpeedwireData::BatteryTemperature);
+    inverter_map.add(SpeedwireData::BatteryPowerL1);
+    inverter_map.add(SpeedwireData::BatteryPowerL2);
+    inverter_map.add(SpeedwireData::BatteryPowerL3);
 
     // configure processing chain
     const unsigned long averagingTimeObisData = 60000;
@@ -135,7 +141,7 @@ int main(int argc, char **argv) {
 
     ObisFilter filter;
     filter.addFilter(emeter_map);
-    InfluxDBProducer producer(discoverer.getDevices());
+    InfluxDBProducer producer;
     CalculatedValueProcessor calculator(filter.getFilter(), inverter_map, producer);
     AveragingProcessor averager(averagingTimeObisData, averagingTimeSpeedwireData);
     filter.addConsumer(averager);
@@ -147,8 +153,8 @@ int main(int argc, char **argv) {
     const std::vector<SpeedwireSocket> sockets = SpeedwireSocketFactory::getInstance(localhost)->getRecvSockets(SpeedwireSocketFactory::SocketType::ANYCAST, localhost.getLocalIPv4Addresses());
 
     // configure packet dispatcher
-    EmeterPacketReceiver   emeter_packet_receiver(localhost, filter);
-    InverterPacketReceiver inverter_packet_receiver(localhost, command, averager, inverter_map);
+    EmeterPacketReceiver   emeter_packet_receiver(localhost, discoverer.getDevices(), filter);
+    InverterPacketReceiver inverter_packet_receiver(localhost, discoverer.getDevices(), command, averager, inverter_map);
     SpeedwireReceiveDispatcher dispatcher(localhost);
     dispatcher.registerReceiver(emeter_packet_receiver);
     dispatcher.registerReceiver(inverter_packet_receiver);
@@ -171,7 +177,7 @@ int main(int argc, char **argv) {
         if (command.getTokenRepository().needs_login == true) {
             command.getTokenRepository().needs_login = false;
             for (auto& device : discoverer.getDevices()) {
-                if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter") {
+                if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter" || device.deviceClass == "Battery-Inverter") {
                     logger.print(LogLevel::LOG_INFO_0, "login to inverter - susyid %u serial %lu time 0x%016llx", device.susyID, device.serialNumber, localhost.getUnixEpochTimeInMs());
                     command.logoff(device);
                     command.login(device, true, "9999");
@@ -195,7 +201,7 @@ int main(int argc, char **argv) {
                 if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter") {
                     // query inverter for status and energy production data
                     logger.print(LogLevel::LOG_INFO_0, "query inverter  time %lu\n", (uint32_t)localhost.getUnixEpochTimeInMs());
-
+#if 1
                   //int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF);    // query software version
                   //int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00821E00, 0x008220FF);    // query device type
                     int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,     0x00251E00, 0x00251EFF);    // query dc power
@@ -210,6 +216,31 @@ int main(int argc, char **argv) {
                     //int32_t return_code_5 = command.query(device, Command::COMMAND_AC_QUERY,     0x00263F00, 0x004642FF, buffer, sizeof(buffer));    // query ac power
                     //int32_t return_code_7 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00214800, 0x002148FF, buffer, sizeof(buffer));    // query device status
                     //int32_t return_code_8 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF, buffer, sizeof(buffer));    // query grid relay status
+#else
+                    // query all available data
+                    int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_ENERGY_QUERY,      0x00000000, 0xffffffff);    // query energy production
+                    int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_TEMPERATURE_QUERY, 0x00000000, 0xffffffff);    // inverter temperature
+                    int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,          0x00000000, 0xffffffff);    // query dc power
+                    int32_t return_code_4 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,          0x00000000, 0xffffffff);    // query ac voltage and current
+                    int32_t return_code_5 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY,      0x00000000, 0xffffffff);    // query device status
+#endif
+                    inverter_query = true;
+                }
+                else if (device.deviceClass == "Battery-Inverter") {
+#if 1
+                    //int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00823400, 0x008234FF);    // query software version
+                    //int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00821E00, 0x008220FF);    // query device type
+                    //int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_ENERGY_QUERY, 0x00260100, 0x004657FF);    // query energy production
+                    int32_t return_code_7 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00214800, 0x004164FF);    // query device status
+                    int32_t return_code_8 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF);    // query grid relay status
+                    int32_t return_code_9 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00263F00, 0x00696eFF);    // query battery and grid measurements
+#else
+                    // query all available data; COMMAND_DC_QUERY is not supported by SBS2.5
+                    int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00000000, 0xffffffff);    // query software version
+                    int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_ENERGY_QUERY, 0x00000000, 0xffffffff);    // query energy production
+                    int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00000000, 0xffffffff);    // query device status
+                    int32_t return_code_4 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00000000, 0xffffffff);    // query battery and grid measurements
+#endif
                     inverter_query = true;
                 }
             }
@@ -234,8 +265,8 @@ int main(int argc, char **argv) {
                 }
 
                 for (auto& device : discoverer.getDevices()) {
-                    if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter") {
-                        averager.endOfSpeedwireData(device.serialNumber, time);
+                    if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter" || device.deviceClass == "Battery-Inverter") {
+                        averager.endOfSpeedwireData(device, time);
                     }
                 }
             }

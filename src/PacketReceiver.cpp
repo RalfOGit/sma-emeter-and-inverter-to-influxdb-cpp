@@ -19,8 +19,9 @@ static Logger inverter_logger = Logger("InverterPacketReceiver");
  /**
   *  Constructor.
   */
-EmeterPacketReceiver::EmeterPacketReceiver(LocalHost& host, ObisFilter& obis_filter)
+EmeterPacketReceiver::EmeterPacketReceiver(LocalHost& host, const std::vector<SpeedwireDevice>& device_array, ObisFilter& obis_filter)
     : EmeterPacketReceiverBase(host),
+    devices(device_array),
     filter(obis_filter) {
     protocolID = SpeedwireHeader::sma_emeter_protocol_id;
 }
@@ -42,16 +43,21 @@ void EmeterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct soc
         uint32_t time   = emeter_packet.getTime();
         emeter_logger.print(LogLevel::LOG_INFO_1, "received emeter packet from %s susyid %u serial %lu time %lu\n", AddressConversion::toString(src).c_str(), susyid, serial, time);
 
-        // extract obis data from the emeter packet and pass each obis data element to the obis filter
-        int32_t signed_power_total = 0, signed_power_l1 = 0, signed_power_l2 = 0, signed_power_l3 = 0;
-        for (void* obis = emeter_packet.getFirstObisElement(); obis != NULL; obis = emeter_packet.getNextObisElement(obis)) {
-            //emeter.printObisElement(obis, stderr);
-            // send the obis value to the obis filter before proceeding with then next obis element
-            filter.consume(serial, obis, time);
-        }
+        // find device by serial number
+        for (const auto& device : devices) {
+            if (device.serialNumber == serial) {
 
-        // signal end of obis data to the obis filter
-        filter.endOfObisData(serial, time);
+                // extract obis data from the emeter packet and pass each obis data element to the obis filter
+                int32_t signed_power_total = 0, signed_power_l1 = 0, signed_power_l2 = 0, signed_power_l3 = 0;
+                for (void* obis = emeter_packet.getFirstObisElement(); obis != NULL; obis = emeter_packet.getNextObisElement(obis)) {
+                    //emeter.printObisElement(obis, stderr);
+                    // send the obis value to the obis filter before proceeding with then next obis element
+                    filter.consume(device, obis, time);
+                }
+                // signal end of obis data to the obis filter
+                filter.endOfObisData(device, time);
+            }
+        }
     }
 }
 
@@ -60,8 +66,9 @@ void EmeterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct soc
 /**
  *  Constructor
  */
-InverterPacketReceiver::InverterPacketReceiver(LocalHost& host, SpeedwireCommand& _command, AveragingProcessor& data_processor, SpeedwireDataMap& map)
+InverterPacketReceiver::InverterPacketReceiver(LocalHost& host, const std::vector<SpeedwireDevice>& device_array, SpeedwireCommand& _command, AveragingProcessor& data_processor, SpeedwireDataMap& map)
   : InverterPacketReceiverBase(host),
+    devices(device_array),
     command(_command),
     processor(data_processor),
     data_map(map) {
@@ -79,16 +86,25 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
 
     if (speedwire_packet.isInverterProtocolID() == true) {
         const SpeedwireInverterProtocol inverter_packet(speedwire_packet);
-        uint16_t susyid   = inverter_packet.getSrcSusyID();
-        uint32_t serial   = inverter_packet.getSrcSerialNumber();
-        uint16_t packetid = inverter_packet.getPacketID();
-        inverter_logger.print(LogLevel::LOG_INFO_1, "received inverter packet from %s susyid %u serial %lu packetid %u\n", AddressConversion::toString(src).c_str(), susyid, serial, packetid);
+        uint16_t susyid    = inverter_packet.getSrcSusyID();
+        uint32_t serial    = inverter_packet.getSrcSerialNumber();
+        uint16_t packetid  = inverter_packet.getPacketID();
+        uint16_t fragments = inverter_packet.getFragmentCounter();
+        inverter_logger.print(LogLevel::LOG_INFO_1, "received inverter packet from %s susyid %u serial %lu packetid %u fragmentid %u ctrl 0x%02x\n", AddressConversion::toString(src).c_str(), susyid, serial, packetid, fragments, speedwire_packet.getControl());
 
         // determine the query token belonging to this response packet
         int token_index = command.getTokenRepository().find(susyid, serial, packetid);
         if (token_index < 0) {
+#if 1
+            inverter_logger.print(LogLevel::LOG_ERROR, "cannot find query token => PROVISIONALLY ACCEPTED\n");
+            //printf("%s\n", inverter_packet.toString().c_str());
+            struct sockaddr_in temp = AddressConversion::toSockAddrIn(src); temp.sin_port = 0;
+            command.getTokenRepository().add(susyid, serial, packetid, AddressConversion::toString(temp), inverter_packet.getCommandID());
+            token_index = command.getTokenRepository().find(susyid, serial, packetid);
+#else
             inverter_logger.print(LogLevel::LOG_ERROR, "cannot find query token => DROPPED\n");
             return;
+#endif
         }
         const SpeedwireCommandToken& token = command.getTokenRepository().at(token_index);
 
@@ -121,22 +137,33 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
             return;
         }
 
-        // parse reply packet (this path is not taken for login replies)
-        std::vector<SpeedwireRawData> raw_data_vector = inverter_packet.getRawDataElements();
-        //printf("%s\n", inverter_packet.toString().c_str());
+        // find device by serial number
+        for (const auto& device : devices) {
+            if (device.serialNumber == serial) {
 
-        // convert raw data into inverter values and pass them to the data processor
-        for (auto &raw_data : raw_data_vector) {
-            raw_data.command = (Command)token.command;
-            auto iterator = data_map.find(raw_data.toKey());
-            if (iterator != data_map.end()) {
-                iterator->second.consume(raw_data);
-                //iterator->second.print(stdout);
-                processor.consume(serial, iterator->second);
+                // parse reply packet (this path is not taken for login replies)
+                std::vector<SpeedwireRawData> raw_data_vector = inverter_packet.getRawDataElements();
+                //printf("%s\n", inverter_packet.toString().c_str());
+                //for (auto& raw_data : raw_data_vector) {
+                //    printf("%s\n", raw_data.toString().c_str());
+                //}
+
+                // convert raw data into inverter values and pass them to the data processor
+                for (auto& raw_data : raw_data_vector) {
+                    raw_data.command = (Command)token.command;
+                    auto iterator = data_map.find(raw_data.toKey());
+                    if (iterator != data_map.end()) {
+                        iterator->second.consume(raw_data);
+                        //iterator->second.print(stdout);
+                        processor.consume(device, iterator->second);
+                    }
+                }
             }
         }
 
-        // remove query token
-        command.getTokenRepository().remove(token_index);
+        // if there are no further response fragments to expect, remove query token, 
+        if (fragments == 0) {
+            command.getTokenRepository().remove(token_index);
+        }
     }
 }

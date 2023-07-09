@@ -16,10 +16,10 @@ typedef struct {
 
 static TimeMapping lastEmeterTime = { 0 };
 static TimeMapping lastInverterTime = { 0 };
+static TimeMapping lastBatteryTime = { 0 };
 
 
-InfluxDBProducer::InfluxDBProducer(const std::vector<SpeedwireInfo>& device_array) :
-    devices(device_array),
+InfluxDBProducer::InfluxDBProducer(void) :
   //influxDB(influxdb::InfluxDBFactory::Get("udp://localhost:8094/?db=test")),
   influxDB(influxdb::InfluxDBFactory::Get("http://localhost:8086/?db=test")),
   //  influxDB(influxdb::InfluxDBFactory::Get("http://192.168.178.16:8086/?db=test")),
@@ -35,11 +35,11 @@ void InfluxDBProducer::flush(void) {
 }
 
 
-void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementType &type, const Wire line, const double value, const uint32_t time) {
+void InfluxDBProducer::produce(const SpeedwireDevice &device, const MeasurementType &type, const Wire line, const double value, const uint32_t time) {
     system_clock::time_point system_time(system_clock::duration::zero());   // initialize to 0
 
     // fake serial number for household consumption measurements
-    if (serial_number == 0xcafebabe) {
+    if (device.serialNumber == 0xcafebabe) {
         influxPoint.addTag("device", "house");
         if (time != 0) {
             if (lastEmeterTime.sma_time != time) {
@@ -54,7 +54,7 @@ void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementTy
 #endif
     }
     // fake serial number for experimental emeter measurements
-    else if (serial_number == 1234567890) {
+    else if (device.serialNumber == 0xdeadbeef) {
         influxPoint.addTag("device", "meter");
         if (time != 0) {
             milliseconds millis(SpeedwireTime::convertEmeterTimeToUnixEpochTime(time));
@@ -65,40 +65,44 @@ void InfluxDBProducer::produce(const uint32_t serial_number, const MeasurementTy
 #endif
     }
     // determine device type by its serial number
-    else {
-        for (size_t i = 0; i < devices.size(); ++i) {
-            if (devices[i].serialNumber == serial_number) {
-                if (devices[i].deviceClass == "Emeter") {
-                    influxPoint.addTag("device", "meter");
-                    if (time != 0) {
-                        if (lastEmeterTime.sma_time != time) {
-                            lastEmeterTime.sma_time = time;
-                            milliseconds millis(SpeedwireTime::convertEmeterTimeToUnixEpochTime(time));
-                            lastEmeterTime.system_time = system_clock::time_point(duration_cast<system_clock::duration>(millis));
-                        }
-                        system_time = lastEmeterTime.system_time;
-                    }
-                }
-                else if (devices[i].deviceClass == "Inverter" || devices[i].deviceClass == "PV-Inverter") {
-                    influxPoint.addTag("device", "inverter"); 
-                    if (time != 0) {
-                        if (lastInverterTime.sma_time != time) {
-                            lastInverterTime.sma_time = time;
-                            milliseconds millis(SpeedwireTime::convertInverterTimeToUnixEpochTime(time));
-                            lastInverterTime.system_time = system_clock::time_point(duration_cast<system_clock::duration>(millis));
-                        }
-                        system_time = lastInverterTime.system_time;
-                    }
-                }
-                break;
+    else if (device.deviceClass == "Emeter") {
+        influxPoint.addTag("device", "meter");
+        if (time != 0) {
+            if (lastEmeterTime.sma_time != time) {
+                lastEmeterTime.sma_time = time;
+                milliseconds millis(SpeedwireTime::convertEmeterTimeToUnixEpochTime(time));
+                lastEmeterTime.system_time = system_clock::time_point(duration_cast<system_clock::duration>(millis));
             }
+            system_time = lastEmeterTime.system_time;
         }
-#if PRINT_STYLE == PRINT_STYLE_SHORT
-        fprintf(stderr, "%llu  %-22s  %lf\n", system_time.time_since_epoch().count(), type.getFullName(line).c_str(), value);
-#endif
     }
+    else if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter") {
+        influxPoint.addTag("device", "inverter"); 
+        if (time != 0) {
+            if (lastInverterTime.sma_time != time) {
+                lastInverterTime.sma_time = time;
+                milliseconds millis(SpeedwireTime::convertInverterTimeToUnixEpochTime(time));
+                lastInverterTime.system_time = system_clock::time_point(duration_cast<system_clock::duration>(millis));
+            }
+            system_time = lastInverterTime.system_time;
+        }
+    }
+    else if (device.deviceClass == "Battery-Inverter") {
+        influxPoint.addTag("device", "battery");
+        if (time != 0) {
+            if (lastBatteryTime.sma_time != time) {
+                lastBatteryTime.sma_time = time;
+                milliseconds millis(SpeedwireTime::convertInverterTimeToUnixEpochTime(time));
+                lastBatteryTime.system_time = system_clock::time_point(duration_cast<system_clock::duration>(millis));
+            }
+            system_time = lastBatteryTime.system_time;
+        }
+    }
+#if PRINT_STYLE == PRINT_STYLE_SHORT
+    fprintf(stderr, "%llu  %-22s  %lf     %s\n", system_time.time_since_epoch().count(), type.getFullName(line).c_str(), value, influxPoint.getTags().c_str());
+#endif
     char serial[32];
-    snprintf(serial, sizeof(serial), "%lu", serial_number);
+    snprintf(serial, sizeof(serial), "%lu", device.serialNumber);
     influxPoint.addTag("serial", std::string(serial));
 
     std::string str_direction(toString(type.direction));
