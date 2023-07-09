@@ -95,7 +95,7 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
         // determine the query token belonging to this response packet
         int token_index = command.getTokenRepository().find(susyid, serial, packetid);
         if (token_index < 0) {
-#if 1
+#if 0
             inverter_logger.print(LogLevel::LOG_ERROR, "cannot find query token => PROVISIONALLY ACCEPTED\n");
             //printf("%s\n", inverter_packet.toString().c_str());
             struct sockaddr_in temp = AddressConversion::toSockAddrIn(src); temp.sin_port = 0;
