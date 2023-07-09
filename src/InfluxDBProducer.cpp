@@ -54,7 +54,7 @@ void InfluxDBProducer::produce(const SpeedwireDevice &device, const MeasurementT
 #endif
     }
     // fake serial number for experimental emeter measurements
-    else if (device.serialNumber == 0xdeadbeef) {
+    else if (device.serialNumber == 1234567890) {
         influxPoint.addTag("device", "meter");
         if (time != 0) {
             milliseconds millis(SpeedwireTime::convertEmeterTimeToUnixEpochTime(time));
