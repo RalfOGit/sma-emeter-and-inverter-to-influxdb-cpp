@@ -237,7 +237,7 @@ int main(int argc, char **argv) {
                     //int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_ENERGY_QUERY, 0x00260100, 0x004657FF);    // query energy production
                     int32_t return_code_7 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00214800, 0x004164FF);    // query device status
                     int32_t return_code_8 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF);    // query grid relay status
-                    int32_t return_code_9 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00263F00, 0x004657FF);    // query battery and grid measurements
+                    int32_t return_code_9 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00263F00, 0x00495dff);    // query battery and grid measurements
 #else
                     // query all available data; COMMAND_DC_QUERY is not supported by SBS2.5
                     int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00000000, 0xffffffff);    // query software version
