@@ -61,8 +61,9 @@ int main(int argc, char **argv) {
     logger.print(LogLevel::LOG_INFO_0, "starting device discovery ...\n");
     SpeedwireDiscovery discoverer(localhost);
     discoverer.preRegisterDevice("192.168.182.18");
-    int num_devices = discoverer.discoverDevices();
-    logger.print(LogLevel::LOG_INFO_0, "... finished device discovery\n");
+    discoverer.preRegisterDevice("192.168.178.136");
+    int num_devices = discoverer.discoverDevices(true);    // set to true, for full-subnet scan
+    logger.print(LogLevel::LOG_INFO_0, "... finished device discovery; %lu devices found\n", discoverer.getNumberOfFullyRegisteredDevices());
     if (num_devices == 0) {
         logger.print(LogLevel::LOG_WARNING, "... no speedwire device found\n");
     }
@@ -124,9 +125,12 @@ int main(int argc, char **argv) {
     inverter_map.add(SpeedwireData::InverterRelay);
     inverter_map.add(SpeedwireData::BatteryStateOfCharge);
     inverter_map.add(SpeedwireData::BatteryTemperature);
-    inverter_map.add(SpeedwireData::BatteryPowerL1);
-    inverter_map.add(SpeedwireData::BatteryPowerL2);
-    inverter_map.add(SpeedwireData::BatteryPowerL3);
+    inverter_map.add(SpeedwireData::BatteryPowerACTotal);
+    //inverter_map.add(SpeedwireData::BatteryPowerL1);
+    //inverter_map.add(SpeedwireData::BatteryPowerL2);
+    //inverter_map.add(SpeedwireData::BatteryPowerL3);
+    inverter_map.add(SpeedwireData::BatteryOperationStatus);
+    inverter_map.add(SpeedwireData::BatteryRelay);
 
     // configure processing chain
     const unsigned long averagingTimeObisData = 60000;
@@ -233,7 +237,7 @@ int main(int argc, char **argv) {
                     //int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_ENERGY_QUERY, 0x00260100, 0x004657FF);    // query energy production
                     int32_t return_code_7 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00214800, 0x004164FF);    // query device status
                     int32_t return_code_8 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF);    // query grid relay status
-                    int32_t return_code_9 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00263F00, 0x00696eFF);    // query battery and grid measurements
+                    int32_t return_code_9 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00263F00, 0x004657FF);    // query battery and grid measurements
 #else
                     // query all available data; COMMAND_DC_QUERY is not supported by SBS2.5
                     int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00000000, 0xffffffff);    // query software version
