@@ -12,6 +12,7 @@
 #include <LocalHost.hpp>
 #include <AddressConversion.hpp>
 #include <CalculatedValueProcessor.hpp>
+#include <HttpClient.hpp>
 #include <Logger.hpp>
 #include <Measurement.hpp>
 #include <SpeedwireSocketFactory.hpp>
@@ -56,14 +57,40 @@ int main(int argc, char **argv) {
     //log_level = log_level | LogLevel::LOG_INFO_3;
     Logger::setLogListener(log_listener, log_level);
 
-    // discover sma devices on the local network
+    // register all required speedwire devices; this needs to be adapted for each site!!!
     LocalHost& localhost = LocalHost::getInstance();
-    logger.print(LogLevel::LOG_INFO_0, "starting device discovery ...\n");
     SpeedwireDiscovery discoverer(localhost);
-    discoverer.preRegisterDevice("192.168.182.18");
-    discoverer.preRegisterDevice("192.168.178.136");
+    discoverer.preRegisterDevice("192.168.182.18");     // pv inverter
+    discoverer.preRegisterDevice("192.168.178.136");    // battery inverter
+    discoverer.requireDevice(1901431377);   // emeter at grid connection point
+    discoverer.requireDevice(3010538116);   // pv inverter
+    discoverer.requireDevice(1901026885);   // battery inverter
+
+    // discover sma devices on the local network
+    logger.print(LogLevel::LOG_INFO_0, "starting device discovery ...\n");
     int num_devices = discoverer.discoverDevices(true);    // set to true, for full-subnet scan
     logger.print(LogLevel::LOG_INFO_0, "... finished device discovery; %lu devices found\n", discoverer.getNumberOfFullyRegisteredDevices());
+
+    // check if there are still required but undiscovered devices; if so go for another discovery round
+    if (discoverer.getNumberOfMissingDevices() > 0) {
+        logger.print(LogLevel::LOG_INFO_0, "still missing %lu devices\n", discoverer.getNumberOfMissingDevices());
+        std::vector<SpeedwireDevice> devices = discoverer.getDevices();
+        for (const auto& device : devices) {
+            // try to wakeup any device having a pre.registered ip address with an http get request, ping would also do
+            if (device.hasIPAddressOnly()) {
+                libralfogit::HttpClient http_client;
+                std::string response;
+                std::string content;
+                std::string url = "http://" + device.peer_ip_address + "/";
+                logger.print(LogLevel::LOG_INFO_0, "send http get request to device %s ...\n", device.peer_ip_address.c_str());
+                int response_code = http_client.sendHttpGetRequest(url, response, content);
+                logger.print(LogLevel::LOG_INFO_0, "... received response code %d\n", response_code);
+            }
+        }
+        logger.print(LogLevel::LOG_INFO_0, "starting device discovery #2 ...\n");
+        num_devices = discoverer.discoverDevices(false);
+        logger.print(LogLevel::LOG_INFO_0, "... finished device discovery #2\n");
+    }
     if (num_devices == 0) {
         logger.print(LogLevel::LOG_WARNING, "... no speedwire device found\n");
     }

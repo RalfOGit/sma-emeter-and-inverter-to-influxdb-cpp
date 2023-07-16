@@ -38,6 +38,8 @@ add_subdirectory(libspeedwire EXCLUDE_FROM_ALL)
 set(PROJECT_SOURCES
     src/InfluxDBProducer.cpp
     src/PacketReceiver.cpp
+    src/HttpClient.cpp
+    src/Url.cpp
     src/main.cpp
 )
 set(PROJECT_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
