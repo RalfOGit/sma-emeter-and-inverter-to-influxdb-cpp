@@ -51,7 +51,7 @@ void EmeterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct soc
                 if (device.serialNumber == serial) {
 
                     // extract obis data from the emeter packet and pass each obis data element to the obis filter
-                    for (void* obis = emeter_packet.getFirstObisElement(); obis != NULL; obis = emeter_packet.getNextObisElement(obis)) {
+                    for (const void* obis = emeter_packet.getFirstObisElement(); obis != NULL; obis = emeter_packet.getNextObisElement(obis)) {
                         //emeter_logger.print(LogLevel::LOG_INFO_1, "obis element: %s", SpeedwireEmeterProtocol::toString(obis).c_str());
                         // send the obis value to the obis filter before proceeding with then next obis element
                         filter.consume(device, obis, time);
