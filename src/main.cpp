@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     LocalHost& localhost = LocalHost::getInstance();
     SpeedwireDiscovery discoverer(localhost);
     discoverer.preRegisterDevice("192.168.182.18");     // pv inverter
-    discoverer.preRegisterDevice("192.168.178.136");    // battery inverter
+    discoverer.preRegisterDevice("192.168.178.22");     // battery inverter
     discoverer.requireDevice(1901431377);   // emeter at grid connection point
     discoverer.requireDevice(3010538116);   // pv inverter
     discoverer.requireDevice(1901026885);   // battery inverter
