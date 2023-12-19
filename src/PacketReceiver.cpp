@@ -150,7 +150,7 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
 
                     // parse reply packet (this path is not taken for login replies)
                     std::vector<SpeedwireRawData> raw_data_vector = inverter_packet.getRawDataElements();
-                    //printf("%s\n", inverter_packet.toString().c_str());
+//                    printf("%s\n", inverter_packet.toString().c_str());
                     //for (auto& raw_data : raw_data_vector) {
                     //    printf("%s\n", raw_data.toString().c_str());
                     //}
@@ -161,7 +161,7 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
                         auto iterator = data_map.find(raw_data.toKey());
                         if (iterator != data_map.end()) {
                             iterator->second.consume(raw_data);
-                            //iterator->second.print(stdout);
+                            //fprintf(stdout, "%s", iterator->second.toString().c_str());
                             processor.consume(device, iterator->second);
                         }
                     }

@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
 
     // discover sma devices on the local network
     logger.print(LogLevel::LOG_INFO_0, "starting device discovery ...\n");
-    int num_devices = discoverer.discoverDevices(true);    // set to true, for full-subnet scan
+    int num_devices = discoverer.discoverDevices(false);    // set to false, skip full-subnet scan
     logger.print(LogLevel::LOG_INFO_0, "... finished device discovery; %lu devices found\n", discoverer.getNumberOfFullyRegisteredDevices());
 
     // check if there are still required but undiscovered devices; if so go for another discovery round
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
             }
         }
         logger.print(LogLevel::LOG_INFO_0, "starting device discovery #2 ...\n");
-        num_devices = discoverer.discoverDevices(false);
+        num_devices = discoverer.discoverDevices(true);    // set to true, perform full-subnet scan
         logger.print(LogLevel::LOG_INFO_0, "... finished device discovery #2\n");
     }
     if (num_devices == 0) {
@@ -249,11 +249,12 @@ int main(int argc, char **argv) {
                     //int32_t return_code_8 = command.query(device, Command::COMMAND_STATUS_QUERY, 0x00416400, 0x004164FF, buffer, sizeof(buffer));    // query grid relay status
 #else
                     // query all available data
-                    int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_ENERGY_QUERY,      0x00000000, 0xffffffff);    // query energy production
-                    int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_TEMPERATURE_QUERY, 0x00000000, 0xffffffff);    // inverter temperature
-                    int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,          0x00000000, 0xffffffff);    // query dc power
-                    int32_t return_code_4 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,          0x00000000, 0xffffffff);    // query ac voltage and current
-                    int32_t return_code_5 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY,      0x00000000, 0xffffffff);    // query device status
+                    int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY,      0x00000000, 0xffffffff);    // query device information
+                    int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_ENERGY_QUERY,      0x00000000, 0xffffffff);    // query energy production
+                    int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_TEMPERATURE_QUERY, 0x00000000, 0xffffffff);    // inverter temperature
+                    int32_t return_code_4 = command.sendQueryRequest(device, Command::COMMAND_DC_QUERY,          0x00000000, 0xffffffff);    // query dc power
+                    int32_t return_code_5 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,          0x00000000, 0xffffffff);    // query ac voltage and current
+                    int32_t return_code_6 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY,      0x00000000, 0xffffffff);    // query device status
 #endif
                     inverter_query = true;
                 }
@@ -269,8 +270,8 @@ int main(int argc, char **argv) {
                     // query all available data; COMMAND_DC_QUERY is not supported by SBS2.5
                     int32_t return_code_1 = command.sendQueryRequest(device, Command::COMMAND_DEVICE_QUERY, 0x00000000, 0xffffffff);    // query software version
                     int32_t return_code_2 = command.sendQueryRequest(device, Command::COMMAND_ENERGY_QUERY, 0x00000000, 0xffffffff);    // query energy production
-                    int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00000000, 0xffffffff);    // query device status
-                    int32_t return_code_4 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00000000, 0xffffffff);    // query battery and grid measurements
+                    int32_t return_code_3 = command.sendQueryRequest(device, Command::COMMAND_AC_QUERY,     0x00000000, 0xffffffff);    // query battery and grid measurements
+                    int32_t return_code_4 = command.sendQueryRequest(device, Command::COMMAND_STATUS_QUERY, 0x00000000, 0xffffffff);    // query device status
 #endif
                     inverter_query = true;
                 }
