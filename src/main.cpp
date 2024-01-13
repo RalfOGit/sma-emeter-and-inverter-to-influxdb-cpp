@@ -17,6 +17,7 @@
 #include <Measurement.hpp>
 #include <SpeedwireSocketFactory.hpp>
 #include <SpeedwireSocketSimple.hpp>
+#include <SpeedwireAuthentication.hpp>
 #include <SpeedwireByteEncoding.hpp>
 #include <SpeedwireDevice.hpp>
 #include <SpeedwireHeader.hpp>
@@ -81,8 +82,8 @@ int main(int argc, char **argv) {
                 libralfogit::HttpClient http_client;
                 std::string response;
                 std::string content;
-                std::string url = "http://" + device.peer_ip_address + "/";
-                logger.print(LogLevel::LOG_INFO_0, "send http get request to device %s ...\n", device.peer_ip_address.c_str());
+                std::string url = "http://" + device.deviceIpAddress + "/";
+                logger.print(LogLevel::LOG_INFO_0, "send http get request to device %s ...\n", device.deviceIpAddress.c_str());
                 int response_code = http_client.sendHttpGetRequest(url, response, content);
                 logger.print(LogLevel::LOG_INFO_0, "... received response code %d\n", response_code);
             }
@@ -209,9 +210,9 @@ int main(int argc, char **argv) {
             command.getTokenRepository().needs_login = false;
             for (auto& device : discoverer.getDevices()) {
                 if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter" || device.deviceClass == "Battery-Inverter") {
-                    logger.print(LogLevel::LOG_INFO_0, "login to inverter - susyid %u serial %lu time 0x%016llx", device.susyID, device.serialNumber, localhost.getUnixEpochTimeInMs());
-                    command.logoff(device);
-                    command.login(device, true, "9999");
+                    SpeedwireAuthentication authenticator(localhost, discoverer.getDevices());
+                    authenticator.logoff();
+                    authenticator.login(true, "9999", 1000);
                     int npackets = dispatcher.dispatch(sockets, poll_emeter_timeout_in_ms);
                     start_time = localhost.getTickCountInMs() - query_inverter_interval_in_ms - 1;
                     //command.queryDeviceType(device);

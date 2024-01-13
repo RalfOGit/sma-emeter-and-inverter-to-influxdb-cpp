@@ -48,7 +48,7 @@ void EmeterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct soc
 
             // find device by serial number
             for (const auto& device : devices) {
-                if (device.serialNumber == serial) {
+                if (device.deviceAddress.serialNumber == serial) {
 
                     // extract obis data from the emeter packet and pass each obis data element to the obis filter
                     for (const void* obis = emeter_packet.getFirstObisElement(); obis != NULL; obis = emeter_packet.getNextObisElement(obis)) {
@@ -110,13 +110,14 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
                 token_index = command.getTokenRepository().find(susyid, serial, packetid);
 #else
                 inverter_logger.print(LogLevel::LOG_ERROR, "cannot find query token => DROPPED\n");
+                inverter_logger.print(LogLevel::LOG_ERROR, "%s\n", inverter_packet.toString().c_str());
                 return;
 #endif
             }
             const SpeedwireCommandToken& token = command.getTokenRepository().at(token_index);
 
             // check if the inverter reply packet contains valid data
-            bool valid = SpeedwireCommand::checkReply(speedwire_packet, src, token);
+            bool valid = command.checkReply(speedwire_packet, src, token);
             if (valid == false) {
                 inverter_logger.print(LogLevel::LOG_ERROR, "invalid reply data => DROPPED\n");
                 return;
@@ -146,7 +147,7 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
 
             // find device by serial number
             for (const auto& device : devices) {
-                if (device.serialNumber == serial) {
+                if (device.deviceAddress.serialNumber == serial) {
 
                     // parse reply packet (this path is not taken for login replies)
                     std::vector<SpeedwireRawData> raw_data_vector = inverter_packet.getRawDataElements();

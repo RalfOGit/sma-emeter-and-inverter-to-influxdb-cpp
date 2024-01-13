@@ -39,7 +39,7 @@ void InfluxDBProducer::produce(const SpeedwireDevice &device, const MeasurementT
     system_clock::time_point system_time(system_clock::duration::zero());   // initialize to 0
 
     // fake serial number for household consumption measurements
-    if (device.serialNumber == 0xcafebabe) {
+    if (device.deviceAddress.serialNumber == 0xcafebabe) {
         influxPoint.addTag("device", "house");
         if (time != 0) {
             if (lastEmeterTime.sma_time != time) {
@@ -54,7 +54,7 @@ void InfluxDBProducer::produce(const SpeedwireDevice &device, const MeasurementT
 #endif
     }
     // fake serial number for experimental emeter measurements
-    else if (device.serialNumber == 1234567890) {
+    else if (device.deviceAddress.serialNumber == 1234567890) {
         influxPoint.addTag("device", "meter");
         if (time != 0) {
             milliseconds millis(SpeedwireTime::convertEmeterTimeToUnixEpochTime(time));
@@ -102,7 +102,7 @@ void InfluxDBProducer::produce(const SpeedwireDevice &device, const MeasurementT
     fprintf(stderr, "%llu  %-22s  %lf     %s\n", system_time.time_since_epoch().count(), type.getFullName(line).c_str(), value, influxPoint.getTags().c_str());
 #endif
     char serial[32];
-    snprintf(serial, sizeof(serial), "%lu", device.serialNumber);
+    snprintf(serial, sizeof(serial), "%lu", device.deviceAddress.serialNumber);
     influxPoint.addTag("serial", std::string(serial));
 
     std::string str_direction(toString(type.direction));
