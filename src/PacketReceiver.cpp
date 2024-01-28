@@ -127,8 +127,13 @@ void InverterPacketReceiver::receive(SpeedwireHeader& speedwire_packet, struct s
             uint16_t result = inverter_packet.getErrorCode();
             if (result != 0x0000) {
                 if (result == 0x0017) {
-                    inverter_logger.print(LogLevel::LOG_ERROR, "query error code 0x0017 received - lost connection - not authenticated");
-                    command.getTokenRepository().needs_login = true;
+                    if ((token.command & 0x00ff0000) != 0) {
+                        inverter_logger.print(LogLevel::LOG_ERROR, "query error code 0x0017 received - user authentication not sufficient for command 0x%08lx", token.command);
+                    }
+                    else {
+                        inverter_logger.print(LogLevel::LOG_ERROR, "query error code 0x0017 received - lost connection - not authenticated");
+                        command.getTokenRepository().needs_login = true;
+                    }
                 }
                 else if (token.command == 0xfffd040c) { // login command
                     if (result == 0x0100) {

@@ -41,11 +41,12 @@ set(PROJECT_SOURCES
     src/HttpClient.cpp
     src/Url.cpp
     src/main.cpp
+    src/TagDefinitions.cpp
 )
 set(PROJECT_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
 
 # build configuration
-add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
+add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} )
 add_dependencies(${PROJECT_NAME} speedwire InfluxDB)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIR} speedwire InfluxDB)

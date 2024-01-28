@@ -208,16 +208,11 @@ int main(int argc, char **argv) {
         // login to all inverter devices
         if (command.getTokenRepository().needs_login == true) {
             command.getTokenRepository().needs_login = false;
-            for (auto& device : discoverer.getDevices()) {
-                if (device.deviceClass == "Inverter" || device.deviceClass == "PV-Inverter" || device.deviceClass == "Battery-Inverter") {
-                    SpeedwireAuthentication authenticator(localhost, discoverer.getDevices());
-                    authenticator.logoff();
-                    authenticator.login(true, "9999", 1000);
-                    int npackets = dispatcher.dispatch(sockets, poll_emeter_timeout_in_ms);
-                    start_time = localhost.getTickCountInMs() - query_inverter_interval_in_ms - 1;
-                    //command.queryDeviceType(device);
-                }
-            }
+            SpeedwireAuthentication authenticator(localhost, discoverer.getDevices());
+            authenticator.logoff();
+            authenticator.login(true, "9999", 1000);
+            int npackets = dispatcher.dispatch(sockets, poll_emeter_timeout_in_ms);
+            start_time = localhost.getTickCountInMs() - query_inverter_interval_in_ms - 1;
         }
 
         // if the query interval has elapsed for the inverters, start a query
