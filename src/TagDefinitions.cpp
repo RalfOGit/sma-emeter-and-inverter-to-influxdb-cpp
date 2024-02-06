@@ -93,7 +93,7 @@ bool TagDefinitions::insertIntoGlobalSpeedwireDataMap(const TagRecordMap& map) {
     SpeedwireDataMap& data_map = SpeedwireDataMap::getGlobalMap();
     for (const auto& def : map) {
         if (def.second.register_id != 0) {
-            SpeedwireData entry(0x00000000, def.second.register_id, 0x01, SpeedwireDataType::Unsigned32, 0, NULL, 0, MeasurementType::InverterStatus(), Wire::NO_WIRE, def.second.tagname);
+            SpeedwireData entry(Command::NONE, def.second.register_id, 0x01, SpeedwireDataType::Unsigned32, 0, NULL, 0, MeasurementType::InverterStatus(), Wire::NO_WIRE, def.second.tagname);
             data_map.add(entry);
         }
     }
