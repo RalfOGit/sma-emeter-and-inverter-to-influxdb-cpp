@@ -14,7 +14,7 @@ int TagDefinitions::readFromFile(const std::string& path) {
     FILE* inp = fopen(path.c_str(), "r");
 
     if (inp == NULL) {
-        printf("Could not open tag definitions input file \"%s\"", path.c_str());
+        printf("Could not open tag definitions input file \"%s\"\n", path.c_str());
         return -1;
     }
 
@@ -52,7 +52,7 @@ int TagDefinitions::readFromFile(const std::string& path) {
 
             // create tag record
             if (tag_info.size() != 3) {
-                printf("Wrong number of items in file \"%s\" at line %lu: %s", path.c_str(), line_counter, line.c_str());
+                printf("Wrong number of items in file \"%s\" at line %lu: %s\n", path.c_str(), line_counter, line.c_str());
             }
             else {
                 TagRecord record;
