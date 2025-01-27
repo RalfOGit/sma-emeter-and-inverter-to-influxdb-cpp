@@ -42,7 +42,7 @@ using namespace libralfogit;
 Url::Url(void) :
     url(),
     protocol(),
-    host(), 
+    host(),
     port(0),
     path()
 {}
@@ -85,8 +85,8 @@ Url::Url(const std::string& protocol_, const std::string& user_, const std::stri
     fragment(fragment_)
 {
     // percent encode critical characters in the path, query and fragment with their %hex url encoding; e.g. ' ' is replace by %20
-    path     = percentEncode(path, '/');
-    query    = percentEncode(query, '?');
+    path = percentEncode(path, '/');
+    query = percentEncode(query, '?');
     fragment = percentEncode(fragment, '#');
 
     url = protocol;
@@ -201,7 +201,7 @@ int Url::parseUrl(const std::string& url, std::string& protocol, std::string& us
     std::string::size_type offs_protocol_end = url.find("://", offs);
     if (offs_protocol_end != std::string::npos) {
         protocol = url.substr(0, offs_protocol_end);
-        if (protocol == "http" ) { port = 80; }
+        if (protocol == "http") { port = 80; }
         if (protocol == "https") { port = 443; }
         offs = offs_protocol_end + 3;
     }
@@ -230,7 +230,16 @@ int Url::parseUrl(const std::string& url, std::string& protocol, std::string& us
             offs = i;
         }
         else {
-            return -1;
+            bool has_protocol = (offs > 0);
+            bool has_query = (url.find("?", offs) != std::string::npos);
+            bool has_fragment = (url.find("#", offs) != std::string::npos);
+            if (has_protocol && !has_query && !has_fragment) {
+                host = url.substr(offs);
+                offs = url.length();
+            }
+            else {
+                return -1;
+            }
         }
     }
     else {
@@ -292,10 +301,10 @@ int Url::parseUrl(const std::string& url, std::string& protocol, std::string& us
     }
 
     // replace special characters in the path, query and fragment with their %hex url encoding; e.g. ' ' is replace by %20
-    path     = percentEncode(path,     '/');
-    query    = percentEncode(query,    '?');
+    path = percentEncode(path, '/');
+    query = percentEncode(query, '?');
     fragment = percentEncode(fragment, '#');
-    user     = percentEncode(user,     '@');
+    user = percentEncode(user, '@');
     password = percentEncode(password, '@');
 
     return 0;
@@ -319,7 +328,7 @@ std::string Url::percentEncode(const std::string& url_component, const std::stri
         }
     }
 
-    // loop over all characters and replace special chaacters with their %hex url encoding
+    // loop over all characters and replace special characters with their %hex url encoding
     for (size_t i = offs; i < url_component.length(); ++i) {
         std::string::value_type c = url_component[i];
 
@@ -329,36 +338,36 @@ std::string Url::percentEncode(const std::string& url_component, const std::stri
         //   fragment component:  fragment = *(pchar / "/" / "?")
         //   userinfo component:  userinfo = unreserved / pct-encoded / sub-delims / ":")
         bool unreserved = ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                           (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~');
-        bool subdelims  = (c == '!' || c == '$' || c == '&' || c == '\''|| c == '(' || c == ')' ||
-                           c == '*' || c == '+' || c == ',' || c == ';' || c == '=');
-        bool extra      = (c == ':' || c == '@');
-        bool extra_qf   = (c == '/' || c == '?');
+            (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~');
+        bool subdelims = (c == '!' || c == '$' || c == '&' || c == '\'' || c == '(' || c == ')' ||
+            c == '*' || c == '+' || c == ',' || c == ';' || c == '=');
+        bool extra = (c == ':' || c == '@');
+        bool extra_qf = (c == '/' || c == '?');
 
         // copy any allowed character to the result string
         switch (url_component_identifier) {
-            case '/' : 
-                if (unreserved || subdelims || extra) {
-                    result.append(1, c);
-                    continue;
-                }
-                break;
-            case '?':
-            case '#':
-                if (unreserved || subdelims || extra || extra_qf) {
-                    result.append(1, c);
-                    continue;
-                }
-                break;
-            case '@':
-                if (unreserved || subdelims || c == ':') {
-                    result.append(1, c);
-                    continue;
-                }
-                break;
+        case '/':
+            if (unreserved || subdelims || extra || c == '/') {
+                result.append(1, c);
+                continue;
+            }
+            break;
+        case '?':
+        case '#':
+            if (unreserved || subdelims || extra || extra_qf) {
+                result.append(1, c);
+                continue;
+            }
+            break;
+        case '@':
+            if (unreserved || subdelims || c == ':') {
+                result.append(1, c);
+                continue;
+            }
+            break;
         }
         // copy any pct-encoded character (i.e. "%" HEXDIG HEXDIG) to the result string
-        if (c == '%' && (i+2) < url_component.length()) {
+        if (c == '%' && (i + 2) < url_component.length()) {
             std::string::value_type h1 = url_component[i + 1];
             std::string::value_type h2 = url_component[i + 2];
             if (((h1 >= 'a' && h1 <= 'f') || (h1 >= 'A' && h1 <= 'F') || (h1 >= '0' && h1 <= '9')) &&

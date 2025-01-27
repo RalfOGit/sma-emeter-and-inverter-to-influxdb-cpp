@@ -24,7 +24,7 @@ namespace libralfogit {
         const std::string& getUser(void) const;
         const std::string& getPassword(void) const;
         const std::string& getHost(void) const;
-              int          getPort(void) const;
+        int          getPort(void) const;
         const std::string& getPath(void) const;
         const std::string& getQuery(void) const;
         const std::string& getFragment(void) const;
